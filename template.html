@@ -1,0 +1,40 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My Market Radar</title><style>
+:root{--blue:#2f6bff;--cyan:#12c2d6;--gold:#f2b705;--up:#16a34a;--dn:#dc2626;--bg:#f5f7fb;--card:#fff;--tx:#1a2233;--mut:#6b7385}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+.wrap{max-width:1200px;margin:auto;padding:20px}
+.hero{border-radius:18px;padding:24px;color:#fff;background:linear-gradient(135deg,var(--blue),var(--cyan) 55%,var(--gold));display:flex;flex-wrap:wrap;gap:20px;justify-content:space-between}
+.hero h1{margin:4px 0;font-size:30px}.kp{display:flex;flex-wrap:wrap;gap:12px}.k{background:rgba(255,255,255,.18);border-radius:12px;padding:10px 16px}.k b{display:block;font-size:20px}
+.card{background:var(--card);border-radius:16px;padding:20px;margin-top:20px;box-shadow:0 2px 10px rgba(20,40,90,.06)}h2{margin:0 0 14px;font-size:19px}
+.tbl{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:10px;border-bottom:1px solid #e8ebf2;text-align:right;white-space:nowrap}th{color:var(--mut);font-weight:500}td:nth-child(-n+2),th:nth-child(-n+2){text-align:left}
+tr.row{border-left:5px solid var(--gold)}.tk{background:var(--gold);color:#fff;border-radius:6px;padding:2px 8px;font-weight:700}
+.up{color:var(--up)}.dn{color:var(--dn)}.pill{border-radius:6px;padding:2px 7px}.pill.up{background:#e7f7ec}.pill.dn{background:#fdeaea}.pill.fl{background:#eef0f4;color:var(--mut)}
+.rng{position:relative;width:130px;height:6px;border-radius:3px;background:linear-gradient(90deg,var(--dn),var(--gold),var(--up));margin:6px 0 2px auto}.rng i{position:absolute;top:-4px;width:4px;height:14px;background:var(--tx);border-radius:2px}
+.small{font-size:12px;color:var(--mut)}.gold{border-left:6px solid var(--gold);background:#fff9e6}
+.bar{display:flex;align-items:center;gap:10px;margin:8px 0;flex-wrap:wrap}.bar span{width:200px}.bar .t{flex:1;min-width:120px;height:18px;background:#eef0f4;border-radius:9px}.bar .t i{display:block;height:100%;border-radius:9px}
+.news{display:flex;gap:10px;margin:10px 0}.tag{border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;height:fit-content}.bull{background:#e7f7ec;color:var(--up)}.bear{background:#fdeaea;color:var(--dn)}.neutral{background:#eef0f4;color:var(--mut)}
+dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0}dt{color:var(--mut)}a{color:var(--blue)}
+</style></head><body><div class="wrap" id="app"></div><script>
+const DATA=/*DATA*/null;
+const $=n=>'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const cls=v=>v>0?'up':v<0?'dn':'fl';const sg=v=>(v>0?'+':'')+v.toFixed(2);
+function render(d){const R=d.rows;const tv=R.reduce((a,r)=>a+r.value,0),tc=R.reduce((a,r)=>a+r.entry_price*r.units,0),tp=tv-tc,pct=tc?tp/tc*100:0;
+const ma=(r,k,l)=>`<span class="${r.price>=r[k]?'up':'dn'}">${l} ${r[k].toFixed(2)} ${r.price>=r[k]?'▲':'▼'}</span>`;
+let h=`<div class="hero"><div><div>Watchlist · ${R.length} ticker${R.length>1?'s':''}</div><h1>My Market Radar</h1><div>Last updated: ${d.updated}</div></div>
+<div class="kp"><div class="k">Total value<b>${$(tv)}</b></div><div class="k">Total P/L<b>${tp>=0?'+':'-'}${$(Math.abs(tp))}</b></div><div class="k">Total return<b>${sg(pct)}%</b></div></div></div>
+<div class="card"><h2>Watchlist</h2><div class="tbl"><table><tr><th>Ticker</th><th>Name</th><th>Added</th><th>Entry</th><th>Current</th><th>Day</th><th>Return</th><th>Units</th><th>Value</th><th>$ P/L</th><th>52w range</th><th>Technicals</th><th>Analysts</th></tr>`;
+for(const r of R){const pos=(r.price-r.low52)/(r.high52-r.low52)*100,a=r.analyst;
+h+=`<tr class="row"><td><span class="tk">${r.ticker}</span></td><td>${r.name}</td><td>${r.date_added}</td><td>${$(r.entry_price)}</td><td><b>${$(r.price)}</b><div class="small">${r.price_date}</div></td>
+<td><span class="pill ${cls(r.day_chg)}">${sg(r.day_chg)} (${sg(r.day_pct)}%)</span></td><td><span class="pill ${cls(r.ret_pct)}">${sg(r.ret_pct)}%</span></td><td>${r.units}</td><td>${$(r.value)}</td>
+<td class="${cls(r.pl)}">${r.pl<0?'-':''}${$(Math.abs(r.pl))}</td><td>${$(r.low52)} – ${$(r.high52)}<div class="rng"><i style="left:${pos}%"></i></div><div class="small">${pos.toFixed(0)}% of range</div></td>
+<td>${ma(r,'sma20','20d')}<br>${ma(r,'sma50','50d')}<br>${ma(r,'sma200','200d')}<br>RSI14 <b>${r.rsi14}</b></td>
+<td>${a?`<b>${a.rating}</b><div class="small">${a.analysts} analysts (${a.breakdown})</div>Target ${$(a.target)} <span class="up">+${((a.target/r.price-1)*100).toFixed(1)}%</span><div class="small"><a href="${a.url}">${a.source}</a>, ${a.as_of}</div>`:'N/A'}</td></tr>`}
+h+=`</table></div><p class="small">${d.note}</p></div>`;const g=d.gdx_detail;
+if(g){const pal=['var(--gold)','var(--blue)','var(--cyan)'],mx=Math.max(...g.holdings.map(x=>x[1]));
+h+=`<div class="card gold"><h2>GDX detail · gold miners</h2><dl>${g.gold.map(x=>`<dt>${x[0]}</dt><dd style="margin:0">${x[1]}</dd>`).join('')}</dl></div>
+<div class="card"><h2>Top holdings</h2>${g.holdings.map((x,i)=>`<div class="bar"><span>${x[0]}</span><div class="t"><i style="width:${x[1]/mx*100}%;background:${pal[i%3]}"></i></div><b>${x[1].toFixed(2)}%</b></div>`).join('')}<p class="small">Share of fund assets, via stockanalysis.com</p></div>
+<div class="card"><h2>What drove this week</h2>${g.news.map(x=>`<div class="news"><span class="tag ${x[0]}">${{bull:'Bullish',bear:'Bearish',neutral:'Mixed'}[x[0]]}</span><div>${x[1]}</div></div>`).join('')}
+<h2 style="margin-top:18px">Sources</h2><ul>${g.sources.map(x=>`<li><a href="${x[1]}">${x[0]}</a></li>`).join('')}</ul></div>`}
+document.getElementById('app').innerHTML=h}
+if(DATA)render(DATA);else fetch('data.json').then(r=>r.json()).then(render);
+</script></body></html>
