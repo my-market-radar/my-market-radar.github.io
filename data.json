@@ -1,6 +1,6 @@
 {
- "updated": "Sun Oct 25, 2026 12:53:45 PM ET",
- "updated_iso": "2026-10-25T12:53:45.458836-04:00",
+ "updated": "Sun Oct 25, 2026 01:07:54 PM ET",
+ "updated_iso": "2026-10-25T13:07:54.035462-04:00",
  "market": "closed",
  "rows": [
   {
@@ -116,6 +116,27 @@
    "ret_pct": -0.0,
    "value": 8020.0,
    "pl": -0.0
+  }
+ ],
+ "premarket": [
+  {
+   "ticker": "GDX",
+   "name": "VanEck Gold Miners ETF",
+   "session": "2026-10-23",
+   "prev_close": 81.69,
+   "pm_high": 81.74,
+   "pm_low": 80.61,
+   "pm_volume": null,
+   "pm_last": 81.28,
+   "pm_time": "Fri Oct 23 09:15 AM ET",
+   "pm_price": 81.28,
+   "open": 81.16,
+   "price": 80.2,
+   "quote_time": "Fri Oct 23 04:00 PM ET",
+   "gap": -0.53,
+   "gap_pct": -0.65,
+   "gap_basis": "open",
+   "day_pct": -1.82
   }
  ],
  "gdx_detail": {

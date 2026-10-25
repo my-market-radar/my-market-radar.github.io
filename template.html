@@ -21,7 +21,20 @@ tr.ai td{text-align:left;border-bottom:1px solid #e8ebf2;padding:0 8px 12px}.aic
 dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0}dt{color:var(--mut)}dd{margin:0}a{color:var(--blue)}
 @media(max-width:820px){tr.ai{border:0;margin:-12px 0 12px}tr.ai td::before{content:none}tr.ai td{display:block}thead{display:none}table,tbody,tr,td{display:block;width:100%}tr.row{border:1px solid #e8ebf2;border-left:5px solid var(--gold);border-radius:12px;margin-bottom:12px;padding:6px}tr.row td:first-child{border-left:0}
 td{display:flex;justify-content:space-between;gap:12px;text-align:right;border-bottom:1px dashed #eef0f4}td::before{content:attr(data-l);color:var(--mut);font-weight:500;text-align:left}.rng{margin-left:auto}dl{grid-template-columns:1fr}}
-</style></head><body><div class="wrap" id="app"></div><script>
+.pmh{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}.pmh h2{margin:0}
+.pmf{display:flex;gap:8px;flex-wrap:wrap}.pmf input{border:2px solid #dbe4ff;border-radius:10px;padding:8px 12px;font-size:15px;width:150px;text-transform:uppercase}.pmf input:focus{outline:none;border-color:var(--cyan)}
+.btn{border:0;border-radius:10px;padding:8px 14px;font-weight:700;cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--blue),var(--cyan))}.btn.s{background:#eef3ff;color:var(--blue)}
+.gap{display:inline-block;border-radius:8px;padding:3px 9px;font-weight:700;color:#fff}.gap.up{background:var(--up)}.gap.dn{background:var(--dn)}.gap.fl{background:#9aa3b5}
+.x{border:0;background:#fdeaea;color:var(--dn);border-radius:50%;width:24px;height:24px;cursor:pointer;font-weight:700}tr.pend td{opacity:.65;font-style:italic}
+.pm td:first-child{border-left:5px solid var(--cyan)}#pmmsg{min-height:16px}
+@media(max-width:820px){.pm tr{border:1px solid #e8ebf2;border-left:5px solid var(--cyan);border-radius:12px;margin-bottom:12px;padding:6px 10px}.pm td:first-child{border-left:0}}
+</style></head><body><div class="wrap"><div id="app"></div>
+<div class="card" id="pmcard"><div class="pmh"><h2>⏰ Pre-Market list <span id="pmst"></span></h2>
+<form class="pmf" id="pmform" onsubmit="return addPM(event)"><input id="pmin" placeholder="Ticker e.g. TSLA" maxlength="7" autocomplete="off" aria-label="Ticker">
+<button class="btn" type="submit">+ Add ticker</button><button class="btn s" type="button" onclick="pmSortGap=!pmSortGap;renderPM(DATA)" id="pmsort">Sort: gap %</button></form></div>
+<div id="pmmsg" class="small"></div><div id="pm"></div>
+<p class="small">Adding or removing a ticker opens a prefilled GitHub issue in a new tab. Click <b>Submit</b> (signed in as the repo owner), and a workflow updates the list within about a minute. Pending rows show right away on this device. Gap = pre-market price (or the open, once the market opens) vs the previous close. Source: Yahoo Finance via yfinance; — = unavailable.</p></div>
+<div id="app2"></div></div><script>
 let DATA=/*DATA*/null,prev={},next=60;
 const $=n=>n==null?'—':'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const cls=v=>v>0?'up':v<0?'dn':'fl',sg=v=>(v>0?'+':'')+v.toFixed(2);
@@ -46,13 +59,40 @@ h+=`<tr class="row"><td data-l="Ticker"><div><span class="tk">${r.ticker}</span>
 <td data-l="52w range"><div>${$(r.low52)} – ${$(r.high52)}<div class="rng"><i style="left:${pos}%"></i></div><div class="small">${pos.toFixed(0)}% of range</div></div></td>
 <td data-l="Technicals"><div class="small" style="font-size:12px">${ma(r,'sma20','20d')}<br>${ma(r,'sma50','50d')}<br>${ma(r,'sma200','200d')}<br><b>RSI ${r.rsi14}</b></div></td>
 <td data-l="Analysts"><div>${a?`<b class="up">${a.rating}</b><div class="small">${a.analysts} analysts<br>${a.breakdown}</div>PT ${$(a.target)} <span class="${cls(a.target-r.price)}">${sg((a.target/r.price-1)*100).replace(/(\.\d)\d$/,'$1')}%</span><div class="small"><a href="${a.url}">${a.source.split(' ')[0]}</a> ${a.as_of}</div>`:'N/A'}</div></td></tr>`;prev[r.ticker]=r.price;{const s=SUMS[r.ticker];if(s&&s.summary){const E=x=>String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');const g=s.generated_at?new Date(s.generated_at).toLocaleTimeString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit'})+' ET':'';h+=`<tr class="ai"><td colspan="9"><details class="aic" open><summary>✨ AI Insight by Grok Bot · ${r.ticker} <span class="small" style="font-weight:400">${g?'generated '+g:''}</span></summary><p>${E(s.summary)}</p>${(s.bullets||[]).length?`<ul style="margin:4px 0 8px 18px;font-size:13.5px">${s.bullets.map(x=>`<li>${E(x)}</li>`).join('')}</ul>`:''}<div class="cites">${(s.citations||[]).map((c,i)=>`<a href="${E(c.url)}" target="_blank" rel="noopener">[${i+1}] ${E(c.title||c.url)}</a>`).join('')}</div><div class="small" style="margin-top:6px">AI-generated summary. It may contain errors and is not investment advice.</div></details></td></tr>`}}}
-h+=`</tbody></table><p class="small">${d.note}</p></div>`;const g=d.gdx_detail;
+h+=`</tbody></table><p class="small">${d.note}</p></div>`;document.getElementById('app').innerHTML=h;h='';renderPM(d);const g=d.gdx_detail;
 if(g){const pal=['var(--gold)','var(--blue)','var(--cyan)'],mx=Math.max(...g.holdings.map(x=>x[1]));
 h+=`<div class="card gold"><h2>GDX detail · gold miners</h2><dl>${g.gold.map(x=>`<dt>${x[0]}</dt><dd>${x[1]}</dd>`).join('')}</dl></div>
 <div class="card"><h2>Top holdings</h2>${g.holdings.map((x,i)=>`<div class="bar"><span>${x[0]}</span><div class="t"><i style="width:${x[1]/mx*100}%;background:${pal[i%3]}"></i></div><b>${x[1].toFixed(2)}%</b></div>`).join('')}<p class="small">Share of fund assets, via stockanalysis.com</p></div>
 <div class="card"><h2>What drove this week</h2>${g.news.map(x=>`<div class="news"><span class="tag ${x[0]}">${{bull:'Bullish',bear:'Bearish',neutral:'Mixed'}[x[0]]}</span><div>${x[1]}</div></div>`).join('')}
 <h2 style="margin-top:18px">Sources</h2><ul>${g.sources.map(x=>`<li><a href="${x[1]}">${x[0]}</a></li>`).join('')}</ul></div>`}
-document.getElementById('app').innerHTML=h}
+document.getElementById('app2').innerHTML=h}
+
+const REPO='my-market-radar/my-market-radar.github.io',TKRE=/^[A-Z]{1,5}([.-][A-Z]{1,2})?$/;let pmSortGap=true;
+const pend=()=>{try{return JSON.parse(localStorage.getItem('pmPending')||'{}')}catch(e){return{}}},savePend=p=>localStorage.setItem('pmPending',JSON.stringify(p));
+const issue=(act,t)=>window.open(`https://github.com/${REPO}/issues/new?title=${encodeURIComponent('premarket '+act+': '+t)}&labels=premarket&body=${encodeURIComponent('Requested from My Market Radar. The Pre-Market workflow will '+act+' '+t+' and close this issue.')}`,'_blank','noopener');
+function addPM(e){e.preventDefault();const i=document.getElementById('pmin'),t=i.value.trim().toUpperCase(),m=document.getElementById('pmmsg');
+ if(!TKRE.test(t)){m.innerHTML='<span class="dn">Enter 1–5 letters, optionally followed by . or - and a class letter (e.g. BRK.B).</span>';return false}
+ if(DATA&&(DATA.premarket||[]).some(r=>r.ticker==t)){m.innerHTML=`<span class="fl">${t} is already on the list.</span>`;return false}
+ const p=pend();p[t]={act:'add',at:Date.now()};savePend(p);issue('add',t);i.value='';m.innerHTML=`<span class="up">Opened a GitHub issue to add ${t}. Click Submit there, and it'll appear here as live data shortly.</span>`;renderPM(DATA);return false}
+function rmPM(t){if(!confirm('Remove '+t+' from the pre-market list? This opens a GitHub issue to confirm.'))return;const p=pend();p[t]={act:'remove',at:Date.now()};savePend(p);issue('remove',t);renderPM(DATA)}
+function renderPM(d){if(!d)return;const st=document.getElementById('pmst'),[mc]=mkt();st.innerHTML=`<span class="st ${mc}" style="font-size:12px;vertical-align:middle;border:1px solid #e8ebf2"><i></i>${mc=='pre'?'Pre-market':mc=='open'?'Open':mc=='after'?'After-hours':'Closed'}</span>`;
+ let R=(d.premarket||[]).slice();const have=new Set(R.map(r=>r.ticker)),p=pend();
+ for(const k in p){if((p[k].act=='add'&&have.has(k))||(p[k].act=='remove'&&!have.has(k))||Date.now()-p[k].at>36e5)delete p[k]}savePend(p);
+ for(const k in p)if(p[k].act=='add')R.push({ticker:k,pending:true});
+ if(pmSortGap)R.sort((a,b)=>(b.gap_pct??-1e9)-(a.gap_pct??-1e9));document.getElementById('pmsort').textContent=pmSortGap?'Sort: gap % ↓':'Sort: list order';
+ const n=v=>v==null?'—':v,vol=v=>v==null?'—':v.toLocaleString();
+ let h=`<table class="pm"><thead><tr><th>Ticker</th><th>Gap</th><th>Pre-market</th><th>Prev close</th><th>Open</th><th>Price</th><th>Pre-mkt H / L · Vol</th><th>Last quote</th><th></th></tr></thead><tbody>`;
+ for(const r of R){if(r.pending){h+=`<tr class="pend"><td data-l="Ticker"><span class="tk">${r.ticker}</span></td><td data-l="Status" colspan="8" style="text-align:left">⏳ Pending: waiting for the GitHub issue to be submitted and the next refresh</td></tr>`;continue}
+  const rm=p[r.ticker]&&p[r.ticker].act=='remove';
+  h+=`<tr${rm?' class="pend"':''}><td data-l="Ticker"><div><span class="tk">${r.ticker}</span><div class="small" style="margin-top:4px">${r.name||''}${rm?' · removal pending':''}</div></div></td>
+  <td data-l="Gap">${r.gap_pct!=null?`<div><span class="gap ${cls(r.gap_pct)}">${sg(r.gap_pct)}%</span><div class="small">${r.gap<0?'-':'+'}${$(Math.abs(r.gap))} · vs ${r.gap_basis}</div></div>`:'—'}</td>
+  <td data-l="Pre-market"><b>${$(r.pm_price)}</b></td><td data-l="Prev close">${$(r.prev_close)}</td><td data-l="Open">${$(r.open)}</td>
+  <td data-l="Price">${r.price!=null?`<div><b>${$(r.price)}</b>${r.day_pct!=null?`<br><span class="pill ${cls(r.day_pct)}">${sg(r.day_pct)}%</span>`:''}</div>`:'—'}</td>
+  <td data-l="Pre-mkt H / L · Vol"><div>${$(r.pm_high)} / ${$(r.pm_low)}<div class="small">Vol ${vol(r.pm_volume)}</div></div></td>
+  <td data-l="Last quote"><div class="small">${r.quote_time||r.pm_time||'—'}${r.session?`<br>session ${r.session}`:''}${r.error?`<br><span class="dn">${r.error}</span>`:''}</div></td>
+  <td data-l="Remove"><button class="x" title="Remove ${r.ticker}" onclick="rmPM('${r.ticker}')">✕</button></td></tr>`}
+ if(!R.length)h+=`<tr><td colspan="9">No tickers yet. Add one above.</td></tr>`;
+ document.getElementById('pm').innerHTML=h+'</tbody></table>'}
 let SUMS={};async function loadSums(){try{const r=await fetch('summaries.json?t='+Date.now(),{cache:'no-store'});if(r.ok)SUMS=await r.json()||{}}catch(e){}}
 async function poll(){await loadSums();try{const r=await fetch('data.json?t='+Date.now(),{cache:'no-store'});if(r.ok){DATA=await r.json();}}catch(e){}render(DATA);next=60}
 setInterval(()=>{next--;if(next<=0)poll();const c=document.getElementById('cd');if(c)c.textContent='refreshing in '+next+'s'},1000);

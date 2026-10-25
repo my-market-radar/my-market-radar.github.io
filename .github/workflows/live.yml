@@ -1,7 +1,7 @@
 name: live
 on:
   schedule:
-    - cron: '*/5 13-21 * * 1-5'
+    - cron: '*/5 8-21 * * 1-5'   # covers 4:00 AM-4:10 PM ET in EDT and EST; refresh.py gates on ET hours
   workflow_dispatch:
     inputs:
       force:

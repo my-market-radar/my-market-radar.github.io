@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Refresh watchlist data: intraday quote + 5-min sparkline, daily SMAs/RSI/52w.
-Exits early outside 9:25-16:10 ET on weekdays unless FORCE=1 (or --force)."""
+Exits early outside 4:00-16:10 ET on weekdays unless FORCE=1 (or --force)."""
 import json, datetime, pathlib, os, sys, zoneinfo
 ET = zoneinfo.ZoneInfo("America/New_York")
 now = datetime.datetime.now(ET)
 force = os.environ.get("FORCE") in ("1", "true") or "--force" in sys.argv
-in_hours = now.weekday() < 5 and datetime.time(9, 25) <= now.time() <= datetime.time(16, 10)
+in_hours = now.weekday() < 5 and datetime.time(4, 0) <= now.time() <= datetime.time(16, 10)
 if not (in_hours or force):
     print(f"Outside market hours ({now:%a %H:%M ET}); skipping. Use FORCE=1 to override."); sys.exit(0)
 import yfinance as yf
@@ -42,9 +42,61 @@ for p in cfg["portfolio"]:
     r["ret_pct"] = round((price/p["entry_price"]-1)*100, 2); r["value"] = round(p["units"]*price, 2)
     r["pl"] = round(p["units"]*(price-p["entry_price"]), 2)
     rows.append(r)
+
+def premarket_row(sym):
+    """Pre-market / open snapshot for one ticker. Every missing value stays None ('—' on the page)."""
+    tk = yf.Ticker(sym); out = {"ticker": sym}
+    try: info = tk.info or {}
+    except Exception: info = {}
+    out["name"] = info.get("shortName") or info.get("longName")
+    try: bars = tk.history(period="1d", interval="5m", prepost=True).dropna()
+    except Exception: bars = None
+    try: daily = tk.history(period="10d")["Close"].dropna()
+    except Exception: daily = None
+    if bars is not None and len(bars): sess = bars.index[-1].astimezone(ET).date()
+    elif daily is not None and len(daily): sess = daily.index[-1].date()
+    else: out["error"] = "no data"; return out
+    out["session"] = str(sess)
+    prev = None
+    if daily is not None and len(daily):
+        ps = daily[daily.index.date < sess]
+        if len(ps): prev = float(ps.iloc[-1])
+    if prev is None and info.get("regularMarketPreviousClose"): prev = float(info["regularMarketPreviousClose"])
+    out["prev_close"] = round(prev, 2) if prev else None
+    pre = reg = None
+    if bars is not None and len(bars):
+        loc = bars.index.tz_convert(ET); mins = loc.hour*60 + loc.minute
+        day = loc.date == sess
+        pre = bars[day & (mins >= 240) & (mins < 570)]; reg = bars[day & (mins >= 570) & (mins < 960)]
+    if pre is not None and len(pre):
+        out["pm_high"] = round(float(pre["High"].max()), 2); out["pm_low"] = round(float(pre["Low"].min()), 2)
+        v = int(pre["Volume"].sum()); out["pm_volume"] = v if v > 0 else None
+        out["pm_last"] = round(float(pre["Close"].iloc[-1]), 2)
+        out["pm_time"] = (pre.index[-1] + datetime.timedelta(minutes=5)).astimezone(ET).strftime("%a %b %d %I:%M %p ET")
+    pmp = info.get("preMarketPrice")
+    if pmp:
+        out["pm_price"] = round(float(pmp), 2)
+        if info.get("preMarketTime"): out["pm_time"] = datetime.datetime.fromtimestamp(info["preMarketTime"], ET).strftime("%a %b %d %I:%M %p ET")
+    elif out.get("pm_last") is not None: out["pm_price"] = out["pm_last"]
+    if reg is not None and len(reg):
+        out["open"] = round(float(reg["Open"].iloc[0]), 2)
+        try: out["price"] = round(float(tk.fast_info.last_price), 2)
+        except Exception: out["price"] = round(float(reg["Close"].iloc[-1]), 2)
+        out["quote_time"] = (reg.index[-1] + datetime.timedelta(minutes=5)).astimezone(ET).strftime("%a %b %d %I:%M %p ET")
+    # gap = open (once open) else pre-market price, vs previous close
+    ref = out.get("open") if out.get("open") is not None else out.get("pm_price")
+    if ref is not None and prev:
+        out["gap"] = round(ref - prev, 2); out["gap_pct"] = round((ref/prev - 1)*100, 2); out["gap_basis"] = "open" if out.get("open") is not None else "pre-market"
+    if out.get("price") is not None and prev: out["day_pct"] = round((out["price"]/prev - 1)*100, 2)
+    return out
+pml = json.loads((D/"premarket.json").read_text())["tickers"] if (D/"premarket.json").exists() else []
+premarket = []
+for sym in pml:
+    try: premarket.append(premarket_row(sym))
+    except Exception as e: premarket.append({"ticker": sym, "error": type(e).__name__})
 data = {"updated": now.strftime("%a %b %d, %Y %I:%M:%S %p ET"), "updated_iso": now.isoformat(), "market": phase(now),
-        "rows": rows, "gdx_detail": cfg["gdx_detail"],
+        "rows": rows, "premarket": premarket, "gdx_detail": cfg["gdx_detail"],
         "note": "Quotes: Yahoo Finance via yfinance (may be delayed). 5-min intraday bars for the sparkline. SMA/RSI(14, Wilder)/52w from daily closes incl. today's price."}
 (D/"data.json").write_text(json.dumps(data, indent=1))
 (D/"index.html").write_text((D/"template.html").read_text().replace("/*DATA*/null", json.dumps(data)))
-print("updated", data["updated"], [(r["ticker"], r["price"], r["day_pct"]) for r in rows])
+print("updated", data["updated"], [(r["ticker"], r["price"], r["day_pct"]) for r in rows], [(r["ticker"], r.get("pm_price"), r.get("gap_pct")) for r in premarket])
