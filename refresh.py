@@ -113,12 +113,14 @@ for sym in pml:
     except Exception as e: premarket.append({"ticker": sym, "error": type(e).__name__})
 data = {"updated": now.strftime("%a %b %d, %Y %I:%M:%S %p ET"), "updated_iso": now.isoformat(), "market": phase(now),
         "rows": rows, "premarket": premarket, "gdx_detail": cfg["gdx_detail"],
+        "last_op": sitecrypt.load(D/"lastop.enc.json"),
         "note": "Quotes: Yahoo Finance via yfinance (may be delayed). 5-min intraday bars for the sparkline. SMA/RSI(14, Wilder)/52w from daily closes incl. today's price."}
 # Build the published site. Nothing with prices or positions is written into the repo itself.
 out = D/"_site"
 shutil.rmtree(out, ignore_errors=True); out.mkdir()
 shutil.copy(D/"template.html", out/"index.html")
 (out/"data.enc.json").write_text(json.dumps(sitecrypt.encrypt(data, PASSWORD)))
-if (D/"summaries.enc.json").exists(): shutil.copy(D/"summaries.enc.json", out/"summaries.enc.json")  # already encrypted
+for f in ("summaries.enc.json", "token.enc.json"):  # already encrypted
+    if (D/f).exists(): shutil.copy(D/f, out/f)
 (out/".nojekyll").write_text("")
 print("built _site", data["updated"], [(r["ticker"], r["price"], r["day_pct"]) for r in rows], [(r["ticker"], r.get("pm_price"), r.get("gap_pct")) for r in premarket])

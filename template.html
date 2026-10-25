@@ -31,31 +31,33 @@ td{display:flex;justify-content:space-between;gap:12px;text-align:right;border-b
 .lock{max-width:400px;margin:12vh auto 0;text-align:center;color:#fff;background:linear-gradient(135deg,#1e3a8a,#0891b2 55%,#d4a017);box-shadow:0 18px 50px rgba(8,145,178,.35)}.lock .small,.lock label{color:#e0f2fe!important}.lerr{display:inline-block;background:#fde8e8;color:#b91c1c;border-radius:8px;padding:6px 10px;font-weight:600}.lock .btn{background:#f5c542;color:#1e3a8a;font-weight:700}.lock h1{margin:6px 0 4px;font-size:26px}.lock form{display:flex;flex-direction:column;gap:10px;margin-top:18px}
 .lock input[type=password]{border:2px solid #dbe4ff;border-radius:10px;padding:11px 12px;font-size:16px}.lock input[type=password]:focus{outline:none;border-color:var(--cyan)}
 .lock label{font-size:13px;color:var(--mut);display:flex;gap:6px;align-items:center;justify-content:center}.lockbtn{border:0;background:rgba(255,255,255,.22);color:#fff;border-radius:999px;padding:3px 10px;font-size:12px;cursor:pointer;margin-left:6px}
-</style></head><body><div class="wrap"><div id="lock" class="card lock" hidden><div style="font-size:34px">🔒</div><h1>My Market Radar</h1><div class="small">Enter the site password to view the watchlist.</div>
+.spin{display:inline-block;width:12px;height:12px;border:2px solid #cbd5e1;border-top-color:var(--cyan);border-radius:50%;animation:sp 1s linear infinite;vertical-align:-1px;margin-right:6px}@keyframes sp{to{transform:rotate(360deg)}}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:linear-gradient(135deg,#1e3a8a,#0891b2);color:#fff;padding:11px 18px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);font-weight:600;z-index:9;max-width:92vw;transition:opacity .3s;opacity:0;pointer-events:none}#toast.on{opacity:1}#toast.err{background:linear-gradient(135deg,#b91c1c,#dc2626)}#toast.ok{background:linear-gradient(135deg,#15803d,#16a34a)}
+#pmlist{border:2px solid #dbe4ff;border-radius:10px;padding:8px;font-size:14px;background:#fff}</style></head><body><div class="wrap"><div id="lock" class="card lock" hidden><div style="font-size:34px">🔒</div><h1>My Market Radar</h1><div class="small">Enter the site password to view the watchlist.</div>
 <form onsubmit="return unlock(event)"><input type="password" id="pw" placeholder="Password" autocomplete="current-password" aria-label="Password" required>
 <label><input type="checkbox" id="rem"> Remember on this device</label><button class="btn" type="submit" id="ubtn">Unlock</button></form><div id="lmsg" class="small" style="margin-top:10px"></div></div>
 <div id="main" hidden><div id="app"></div>
 <div class="card" id="pmcard"><div class="pmh"><h2>⏰ Pre-Market list <span id="pmst"></span></h2>
-<form class="pmf" id="pmform" onsubmit="return addPM(event)"><input id="pmin" placeholder="Ticker e.g. TSLA" maxlength="7" autocomplete="off" aria-label="Ticker">
-<button class="btn" type="submit">+ Add ticker</button><button class="btn s" type="button" onclick="pmSortGap=!pmSortGap;renderPM(DATA)" id="pmsort">Sort: gap %</button></form></div>
+<form class="pmf" id="pmform" onsubmit="return addT(event)"><input id="pmin" placeholder="Ticker e.g. TSLA" maxlength="7" autocomplete="off" aria-label="Ticker">
+<select id="pmlist" aria-label="List"><option value="premarket">Pre-Market</option><option value="watchlist">Watchlist (100 units)</option></select><button class="btn" type="submit" id="addbtn">+ Add</button><button class="btn s" type="button" onclick="pmSortGap=!pmSortGap;renderPM(DATA)" id="pmsort">Sort: gap %</button></form></div>
 <div id="pmmsg" class="small"></div><div id="pm"></div>
-<p class="small">Adding or removing a ticker opens a prefilled GitHub issue in a new tab. Click <b>Submit</b> (signed in as the repo owner), and a workflow updates the list within about a minute. Pending rows show right away on this device. Gap = pre-market price (or the open, once the market opens) vs the previous close. Source: Yahoo Finance via yfinance; — = unavailable.</p></div>
-<div id="app2"></div></div></div><script>
-let DATA=null,prev={},next=60,KEY=null,aiOpen={};
+<p class="small">+ Add / ✕ start a GitHub Actions job directly (no GitHub sign-in needed); it usually takes 1–2 minutes. A watchlist add records 100 units at the latest price (pre-market or regular price while trading, else the last close) with today's date. Gap = pre-market price (or the open, once the market opens) vs the previous close. Source: Yahoo Finance via yfinance; — = unavailable.</p></div>
+<div id="app2"></div></div></div><div id="toast"></div><script>
+let DATA=null,prev={},next=60,KEY=null,TOKEN=null,aiOpen={};
 const $=n=>n==null?'—':'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const cls=v=>v>0?'up':v<0?'dn':'fl',sg=v=>(v>0?'+':'')+v.toFixed(2);
 function mkt(){const t=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'})),d=t.getDay(),m=t.getHours()*60+t.getMinutes();
  if(d==0||d==6)return['closed','Closed'];if(m>=570&&m<960)return['open','LIVE • Market Open'];if(m>=240&&m<570)return['pre','Pre-market'];if(m>=960&&m<1200)return['after','After-hours'];return['closed','Closed']}
 function spark(a,up){if(!a||a.length<2)return'';const w=110,h=30,mn=Math.min(...a),mx=Math.max(...a),r=mx-mn||1;
  return`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline fill="none" stroke="${up?'#16a34a':'#dc2626'}" stroke-width="1.6" points="${a.map((v,i)=>`${(i/(a.length-1)*w).toFixed(1)},${(h-2-(v-mn)/r*(h-4)).toFixed(1)}`).join(' ')}"/></svg>`}
-function render(d){if(!d)return;const R=d.rows,P=R.filter(r=>r.value!=null&&r.entry_price!=null),hp=P.length>0,tv=P.reduce((a,r)=>a+r.value,0),tc=P.reduce((a,r)=>a+r.entry_price*r.units,0),tp=tv-tc,pct=tc?tp/tc*100:0,[mc,ml]=mkt();
+function render(d){if(!d)return;resolveOps(d);const R=d.rows,P=R.filter(r=>r.value!=null&&r.entry_price!=null),hp=P.length>0,tv=P.reduce((a,r)=>a+r.value,0),tc=P.reduce((a,r)=>a+r.entry_price*r.units,0),tp=tv-tc,pct=tc?tp/tc*100:0,[mc,ml]=mkt();
 const ma=(r,k,l)=>`<span class="${r.price>=r[k]?'up':'dn'}">${l} ${r[k].toFixed(2)}${r.price>=r[k]?'▲':'▼'}</span>`;
 let h=`<div class="hero"><div><span class="st ${mc}"><i></i>${ml}</span><h1>My Market Radar</h1><div>Watchlist · ${R.length} ticker${R.length>1?'s':''}</div>
 <div class="small" style="color:#fff">Last updated ${d.updated} · <span id="cd">refreshing in ${next}s</span><button class="lockbtn" onclick="lockSite()">🔒 Lock</button></div></div>
 <div class="kp"><div class="k">Total value<b>${hp?$(tv):'—'}</b></div><div class="k">Total P/L<b>${hp?(tp<0?'-':'+')+$(Math.abs(tp)):'—'}</b></div><div class="k">Total return<b>${hp?sg(pct)+'%':'—'}</b></div></div></div>
-<div class="card"><h2>Watchlist</h2><table><thead><tr><th>Ticker</th><th>Intraday</th><th>Current / Day</th><th>Entry</th><th>Return · P/L</th><th>Units · Value</th><th>52w range</th><th>Technicals</th><th>Analysts</th></tr></thead><tbody>`;
+<div class="card"><h2>Watchlist</h2><table><thead><tr><th>Ticker</th><th>Intraday</th><th>Current / Day</th><th>Entry</th><th>Return · P/L</th><th>Units · Value</th><th>52w range</th><th>Technicals</th><th>Analysts</th><th></th></tr></thead><tbody>`;
 for(const r of R){const pos=Math.max(0,Math.min(100,(r.price-r.low52)/(r.high52-r.low52)*100)),a=r.analyst,ch=prev[r.ticker]!=null&&prev[r.ticker]!==r.price?(r.price>prev[r.ticker]?'flash-up':'flash-dn'):'';
-h+=`<tr class="row"><td data-l="Ticker"><div><span class="tk">${r.ticker}</span><div class="small" style="margin-top:4px">${r.name}</div></div></td>
+const wrm=!!opFor('watchlist',r.ticker);h+=`<tr class="row${wrm?' pend':''}"><td data-l="Ticker"><div><span class="tk">${r.ticker}</span><div class="small" style="margin-top:4px">${r.name}${wrm?' · <span class="spin"></span>removing…':''}</div></div></td>
 <td data-l="Intraday">${spark(r.spark,r.day_chg>=0)}</td>
 <td data-l="Current / Day" class="${ch}"><div><span class="big">${$(r.price)}</span><br><span class="pill ${cls(r.day_chg)}">${sg(r.day_chg)} (${sg(r.day_pct)}%)</span>
 <div class="small">H ${$(r.day_high)} L ${$(r.day_low)}<br>Vol ${r.volume?r.volume.toLocaleString():'—'}<br>${r.quote_time||r.price_date}</div></div></td>
@@ -64,7 +66,8 @@ h+=`<tr class="row"><td data-l="Ticker"><div><span class="tk">${r.ticker}</span>
 <td data-l="Units · Value"><div>${r.units??'—'}<br>${$(r.value)}</div></td>
 <td data-l="52w range"><div>${$(r.low52)} – ${$(r.high52)}<div class="rng"><i style="left:${pos}%"></i></div><div class="small">${pos.toFixed(0)}% of range</div></div></td>
 <td data-l="Technicals"><div class="small" style="font-size:12px">${ma(r,'sma20','20d')}<br>${ma(r,'sma50','50d')}<br>${ma(r,'sma200','200d')}<br><b>RSI ${r.rsi14}</b></div></td>
-<td data-l="Analysts"><div>${a?`<b class="up">${a.rating}</b><div class="small">${a.analysts} analysts<br>${a.breakdown}</div>PT ${$(a.target)} <span class="${cls(a.target-r.price)}">${sg((a.target/r.price-1)*100).replace(/(\.\d)\d$/,'$1')}%</span><div class="small"><a href="${a.url}">${a.source.split(' ')[0]}</a> ${a.as_of}</div>`:'N/A'}</div></td></tr>`;prev[r.ticker]=r.price;{const s=SUMS[r.ticker];if(s&&s.summary){const E=x=>String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');const g=s.generated_at?new Date(s.generated_at).toLocaleTimeString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit'})+' ET':'';h+=`<tr class="ai"><td colspan="9"><details class="aic"${aiOpen[r.ticker]===false?'':' open'} ontoggle="aiOpen['${r.ticker}']=this.open"><summary>✨ AI Insight by Grok Bot · ${r.ticker} <span class="small" style="font-weight:400">${g?'generated '+g:''}</span></summary><p>${E(s.summary)}</p>${(s.bullets||[]).length?`<ul style="margin:4px 0 8px 18px;font-size:13.5px">${s.bullets.map(x=>`<li>${E(x)}</li>`).join('')}</ul>`:''}<div class="cites">${(s.citations||[]).map((c,i)=>`<a href="${E(c.url)}" target="_blank" rel="noopener">[${i+1}] ${E(c.title||c.url)}</a>`).join('')}</div><div class="small" style="margin-top:6px">AI-generated summary. It may contain errors and is not investment advice.</div></details></td></tr>`}}}
+<td data-l="Analysts"><div>${a?`<b class="up">${a.rating}</b><div class="small">${a.analysts} analysts<br>${a.breakdown}</div>PT ${$(a.target)} ${a.target!=null?`<span class="${cls(a.target-r.price)}">${sg((a.target/r.price-1)*100).replace(/(\.\d)\d$/,'$1')}%</span>`:''}<div class="small"><a href="${a.url}">${a.source.split(' ')[0]}</a> ${a.as_of}</div>`:'N/A'}</div></td><td data-l="Remove"><button class="x" title="Remove ${r.ticker}" onclick="rmT('watchlist','${r.ticker}')">✕</button></td></tr>`;prev[r.ticker]=r.price;{const s=SUMS[r.ticker];if(s&&s.summary){const E=x=>String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');const g=s.generated_at?new Date(s.generated_at).toLocaleTimeString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit'})+' ET':'';h+=`<tr class="ai"><td colspan="10"><details class="aic"${aiOpen[r.ticker]===false?'':' open'} ontoggle="aiOpen['${r.ticker}']=this.open"><summary>✨ AI Insight by Grok Bot · ${r.ticker} <span class="small" style="font-weight:400">${g?'generated '+g:''}</span></summary><p>${E(s.summary)}</p>${(s.bullets||[]).length?`<ul style="margin:4px 0 8px 18px;font-size:13.5px">${s.bullets.map(x=>`<li>${E(x)}</li>`).join('')}</ul>`:''}<div class="cites">${(s.citations||[]).map((c,i)=>`<a href="${E(c.url)}" target="_blank" rel="noopener">[${i+1}] ${E(c.title||c.url)}</a>`).join('')}</div><div class="small" style="margin-top:6px">AI-generated summary. It may contain errors and is not investment advice.</div></details></td></tr>`}}}
+for(const x of ops())if(x.list=='watchlist'&&x.op=='add')h+=pendRow(x,9);
 h+=`</tbody></table><p class="small">${d.note}</p></div>`;document.getElementById('app').innerHTML=h;h='';renderPM(d);const g=d.gdx_detail;
 if(g){const pal=['var(--gold)','var(--blue)','var(--cyan)'],mx=Math.max(...g.holdings.map(x=>x[1]));
 h+=`<div class="card gold"><h2>${R[0]?R[0].ticker+' ':''}detail · gold miners</h2><dl>${g.gold.map(x=>`<dt>${x[0]}</dt><dd>${x[1]}</dd>`).join('')}</dl></div>
@@ -74,29 +77,48 @@ h+=`<div class="card gold"><h2>${R[0]?R[0].ticker+' ':''}detail · gold miners</
 document.getElementById('app2').innerHTML=h}
 
 const REPO='my-market-radar/my-market-radar.github.io',TKRE=/^[A-Z]{1,5}([.-][A-Z]{1,2})?$/;let pmSortGap=true;
-const pend=()=>{try{return JSON.parse(localStorage.getItem('pmPending')||'{}')}catch(e){return{}}},savePend=p=>localStorage.setItem('pmPending',JSON.stringify(p));
-const issue=(act,t)=>window.open(`https://github.com/${REPO}/issues/new?title=${encodeURIComponent('premarket '+act+': '+t)}&labels=premarket&body=${encodeURIComponent('Requested from My Market Radar. The Pre-Market workflow will '+act+' '+t+' and close this issue.')}`,'_blank','noopener');
-function addPM(e){e.preventDefault();const i=document.getElementById('pmin'),t=i.value.trim().toUpperCase(),m=document.getElementById('pmmsg');
- if(!TKRE.test(t)){m.innerHTML='<span class="dn">Enter 1–5 letters, optionally followed by . or - and a class letter (e.g. BRK.B).</span>';return false}
- if(DATA&&(DATA.premarket||[]).some(r=>r.ticker==t)){m.innerHTML=`<span class="fl">${t} is already on the list.</span>`;return false}
- const p=pend();p[t]={act:'add',at:Date.now()};savePend(p);issue('add',t);i.value='';m.innerHTML=`<span class="up">Opened a GitHub issue to add ${t}. Click Submit there, and it'll appear here as live data shortly.</span>`;renderPM(DATA);return false}
-function rmPM(t){if(!confirm('Remove '+t+' from the pre-market list? This opens a GitHub issue to confirm.'))return;const p=pend();p[t]={act:'remove',at:Date.now()};savePend(p);issue('remove',t);renderPM(DATA)}
+const OPK='mmrOps',ops=()=>{try{return JSON.parse(localStorage.getItem(OPK)||'[]')}catch(e){return[]}},saveOps=o=>localStorage.setItem(OPK,JSON.stringify(o));
+const norm=t=>t.trim().toUpperCase().replace('.','-'),LBL={premarket:'Pre-Market',watchlist:'Watchlist'};
+const opFor=(list,t)=>ops().find(o=>o.list==list&&o.ticker==t);
+let tT;function toast(m,k=''){const e=document.getElementById('toast');e.textContent=m;e.className='on '+k;clearTimeout(tT);tT=setTimeout(()=>e.className=k,k=='err'?9000:5000)}
+async function loadToken(){try{TOKEN=(await dec(KEY,await fetchJ('token.enc.json'))).token}catch(e){TOKEN=null}}
+async function dispatch(op,list,ticker){if(!TOKEN)await loadToken();if(!TOKEN)throw new Error('The one-tap key couldn’t be loaded. Reload the page and try again.');let r;
+ try{r=await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/ticker.yml/dispatches`,{method:'POST',headers:{Authorization:'Bearer '+TOKEN,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},body:JSON.stringify({ref:'main',inputs:{op,list,ticker}})})}
+ catch(e){throw new Error('Couldn’t reach GitHub. Check your connection and try again.')}
+ if(r.status==204)return;if(r.status==401)throw new Error('The one-tap access key has expired or was revoked. Ask Stock Tracker to set up a new one.');
+ if(r.status==403||r.status==404)throw new Error(`GitHub refused the request (${r.status}): the access key may lack Actions permission.`);
+ throw new Error(`GitHub API error ${r.status}. Please try again in a minute.`)}
+async function startOp(op,list,t){const o=ops().filter(x=>!(x.list==list&&x.ticker==t));o.push({op,list,ticker:t,at:Date.now()});saveOps(o);render(DATA);
+ try{await dispatch(op,list,t);toast(`${op=='add'?'Adding':'Removing'} ${t}… usually 1–2 min`);next=Math.min(next,15)}
+ catch(e){saveOps(ops().filter(x=>!(x.list==list&&x.ticker==t)));render(DATA);toast('❌ '+e.message,'err')}}
+function addT(e){e.preventDefault();const i=document.getElementById('pmin'),raw=i.value.trim().toUpperCase(),list=document.getElementById('pmlist').value,m=document.getElementById('pmmsg');
+ if(!TKRE.test(raw)){m.innerHTML='<span class="dn">That doesn’t look like a ticker. Use 1–5 letters, optionally . or - and a class letter (e.g. BRK.B).</span>';return false}
+ const t=norm(raw),have=list=='premarket'?(DATA.premarket||[]).map(r=>r.ticker):DATA.rows.map(r=>r.ticker);
+ if(have.includes(t)){m.innerHTML=`<span class="fl">${t} is already on the ${LBL[list]}.</span>`;return false}
+ if(opFor(list,t)){m.innerHTML=`<span class="fl">${t} is already in progress.</span>`;return false}
+ m.textContent='';i.value='';startOp('add',list,t);return false}
+function rmT(list,t){if(!confirm(`Remove ${t} from the ${LBL[list]}?`))return;startOp('remove',list,t)}
+function resolveOps(d){if(!d)return;const o=ops(),keep=[],lo=d.last_op;
+ for(const x of o){const have=(x.list=='premarket'?(d.premarket||[]):d.rows).some(r=>r.ticker==x.ticker);
+  if((x.op=='add')==have){toast(`✅ ${x.op=='add'?'Added':'Removed'} ${x.ticker} ${x.op=='add'?'to':'from'} the ${LBL[x.list]}`,'ok');continue}
+  if(lo&&!lo.ok&&lo.ticker==x.ticker&&lo.op==x.op&&lo.list==x.list&&Date.parse(lo.at)>=x.at-60000){toast('❌ '+lo.msg,'err');continue}
+  if(Date.now()-x.at>6e5){toast(`⚠️ ${x.ticker}: no result after 10 minutes. Check GitHub Actions or try again.`,'err');continue}
+  keep.push(x)}saveOps(keep)}
+const pendRow=(x,cols)=>`<tr class="pend"><td data-l="Ticker"><span class="tk">${x.ticker}</span></td><td data-l="Status" colspan="${cols}" style="text-align:left"><span class="spin"></span>Adding ${x.ticker}… usually 1–2 min</td></tr>`;
 function renderPM(d){if(!d)return;const st=document.getElementById('pmst'),[mc]=mkt();st.innerHTML=`<span class="st ${mc}" style="font-size:12px;vertical-align:middle;border:1px solid #e8ebf2"><i></i>${mc=='pre'?'Pre-market':mc=='open'?'Open':mc=='after'?'After-hours':'Closed'}</span>`;
- let R=(d.premarket||[]).slice();const have=new Set(R.map(r=>r.ticker)),p=pend();
- for(const k in p){if((p[k].act=='add'&&have.has(k))||(p[k].act=='remove'&&!have.has(k))||Date.now()-p[k].at>36e5)delete p[k]}savePend(p);
- for(const k in p)if(p[k].act=='add')R.push({ticker:k,pending:true});
+ let R=(d.premarket||[]).slice();for(const x of ops())if(x.list=='premarket'&&x.op=='add')R.push({ticker:x.ticker,pending:true});
  if(pmSortGap)R.sort((a,b)=>(b.gap_pct??-1e9)-(a.gap_pct??-1e9));document.getElementById('pmsort').textContent=pmSortGap?'Sort: gap % ↓':'Sort: list order';
  const n=v=>v==null?'—':v,vol=v=>v==null?'—':v.toLocaleString();
  let h=`<table class="pm"><thead><tr><th>Ticker</th><th>Gap</th><th>Pre-market</th><th>Prev close</th><th>Open</th><th>Price</th><th>Pre-mkt H / L · Vol</th><th>Last quote</th><th></th></tr></thead><tbody>`;
- for(const r of R){if(r.pending){h+=`<tr class="pend"><td data-l="Ticker"><span class="tk">${r.ticker}</span></td><td data-l="Status" colspan="8" style="text-align:left">⏳ Pending: waiting for the GitHub issue to be submitted and the next refresh</td></tr>`;continue}
-  const rm=p[r.ticker]&&p[r.ticker].act=='remove';
-  h+=`<tr${rm?' class="pend"':''}><td data-l="Ticker"><div><span class="tk">${r.ticker}</span><div class="small" style="margin-top:4px">${r.name||''}${rm?' · removal pending':''}</div></div></td>
+ for(const r of R){if(r.pending){h+=pendRow(r,8);continue}
+  const rm=!!opFor('premarket',r.ticker);
+  h+=`<tr${rm?' class="pend"':''}><td data-l="Ticker"><div><span class="tk">${r.ticker}</span><div class="small" style="margin-top:4px">${r.name||''}${rm?' · <span class="spin"></span>removing…':''}</div></div></td>
   <td data-l="Gap">${r.gap_pct!=null?`<div><span class="gap ${cls(r.gap_pct)}">${sg(r.gap_pct)}%</span><div class="small">${r.gap<0?'-':'+'}${$(Math.abs(r.gap))} · vs ${r.gap_basis}</div></div>`:'—'}</td>
   <td data-l="Pre-market"><div><b>${$(r.pm_price)}</b>${r.pm_note?`<div class="small">${r.pm_note}</div>`:''}</div></td><td data-l="Prev close">${$(r.prev_close)}</td><td data-l="Open">${$(r.open)}</td>
   <td data-l="Price">${r.price!=null?`<div><b>${$(r.price)}</b>${r.day_pct!=null?`<br><span class="pill ${cls(r.day_pct)}">${sg(r.day_pct)}%</span>`:''}</div>`:'—'}</td>
   <td data-l="Pre-mkt H / L · Vol"><div>${$(r.pm_high)} / ${$(r.pm_low)}<div class="small">Vol ${vol(r.pm_volume)}</div></div></td>
   <td data-l="Last quote"><div class="small">${r.quote_time||r.pm_time||'—'}${r.session?`<br>session ${r.session}`:''}${r.error?`<br><span class="dn">${r.error}</span>`:''}</div></td>
-  <td data-l="Remove"><button class="x" title="Remove ${r.ticker}" onclick="rmPM('${r.ticker}')">✕</button></td></tr>`}
+  <td data-l="Remove"><button class="x" title="Remove ${r.ticker}" onclick="rmT('premarket','${r.ticker}')">✕</button></td></tr>`}
  if(!R.length)h+=`<tr><td colspan="9">No tickers yet. Add one above.</td></tr>`;
  document.getElementById('pm').innerHTML=h+'</tbody></table>'}
 let SUMS={};
@@ -113,13 +135,13 @@ async function loadSums(){if(!KEY)return;try{SUMS=await dec(KEY,await fetchJ('su
 function saveKey(raw,e){try{localStorage.setItem(KS,JSON.stringify({k:btoa(String.fromCharCode(...new Uint8Array(raw))),msalt:e.msalt,iter:e.iter}))}catch(x){}}
 async function storedKey(e){try{const s=JSON.parse(localStorage.getItem(KS)||'null');if(!s||s.msalt!=e.msalt||s.iter!=e.iter)return null;return importMaster(b64(s.k))}catch(x){return null}}
 function show(on){document.getElementById('lock').hidden=on;document.getElementById('main').hidden=!on}
-function lockSite(){KEY=null;DATA=null;SUMS={};try{localStorage.removeItem(KS);localStorage.removeItem('mmrKey')}catch(x){}document.getElementById('pw').value='';document.getElementById('lmsg').textContent='';show(false)}
+function lockSite(){KEY=null;TOKEN=null;DATA=null;SUMS={};try{localStorage.removeItem(KS);localStorage.removeItem('mmrKey')}catch(x){}document.getElementById('pw').value='';document.getElementById('lmsg').textContent='';show(false)}
 async function unlock(ev){ev.preventDefault();const m=document.getElementById('lmsg'),b=document.getElementById('ubtn');b.disabled=true;m.textContent='Unlocking…';
  try{const e=await fetchJ('data.enc.json'),raw=await masterBits(document.getElementById('pw').value,e),k=await importMaster(raw);let d;
   try{d=await dec(k,e)}catch(x){m.innerHTML='<span class="lerr">❌ Wrong password. Try again.</span>';document.getElementById('pw').select();return false}
-  KEY=k;if(document.getElementById('rem').checked)saveKey(raw,e);DATA=d;document.getElementById('pw').value='';show(true);await loadSums();render(DATA);next=60;m.textContent=''}
+  KEY=k;if(document.getElementById('rem').checked)saveKey(raw,e);DATA=d;document.getElementById('pw').value='';show(true);await loadSums();await loadToken();render(DATA);next=60;m.textContent=''}
  catch(x){m.innerHTML='<span class="lerr">Couldn\'t load the data. Check your connection and try again.</span>'}finally{b.disabled=false}return false}
-async function poll(){if(!KEY)return;await loadSums();try{DATA=await dec(KEY,await fetchJ('data.enc.json'))}catch(x){if(x&&x.name=='OperationError'){lockSite();return}}render(DATA);next=60}
+async function poll(){if(!KEY)return;await loadSums();try{DATA=await dec(KEY,await fetchJ('data.enc.json'))}catch(x){if(x&&x.name=='OperationError'){lockSite();return}}render(DATA);next=ops().length?15:60}
 setInterval(()=>{if(!KEY)return;next--;if(next<=0)poll();const c=document.getElementById('cd');if(c)c.textContent='refreshing in '+Math.max(next,0)+'s'},1000);
-(async()=>{try{const e=await fetchJ('data.enc.json'),k=await storedKey(e);if(k){const d=await dec(k,e);KEY=k;DATA=d;show(true);await loadSums();render(DATA);return}}catch(x){}show(false);document.getElementById('pw').focus()})();
+(async()=>{try{const e=await fetchJ('data.enc.json'),k=await storedKey(e);if(k){const d=await dec(k,e);KEY=k;DATA=d;show(true);await loadSums();await loadToken();render(DATA);return}}catch(x){}show(false);document.getElementById('pw').focus()})();
 </script></body></html>
