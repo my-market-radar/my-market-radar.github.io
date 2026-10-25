@@ -1,5 +1,5 @@
 # My Market Radar
-A public stock watchlist page: https://traderkr.github.io/market-radar/
+A public stock watchlist page: https://my-market-radar.github.io/
 
 ## Add a ticker
 Add an entry to `portfolio` in `static.json`, for example:

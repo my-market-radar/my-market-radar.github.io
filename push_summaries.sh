@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Usage: ./push_summaries.sh path/to/summaries.json [repo_dir]
-# Validates the JSON, then commits and pushes ONLY summaries.json to traderkr/market-radar (normal push, no force).
+# Validates the JSON, then commits and pushes ONLY summaries.json to my-market-radar/my-market-radar.github.io (normal push, no force).
 set -euo pipefail
 SRC="$(realpath "${1:?usage: push_summaries.sh path/to/summaries.json [repo_dir]}")"
 REPO="${2:-$(cd "$(dirname "$0")" && pwd)/publish}"
 python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));assert isinstance(d,dict)
 for t,v in d.items(): assert isinstance(v.get("summary"),str) and isinstance(v.get("citations",[]),list),t' "$SRC"
-[ -d "$REPO/.git" ] || git clone -q https://github.com/traderkr/market-radar.git "$REPO"
+[ -d "$REPO/.git" ] || git clone -q https://github.com/my-market-radar/my-market-radar.github.io.git "$REPO"
 cd "$REPO"
 git pull -q --rebase origin main
 cp "$SRC" summaries.json
