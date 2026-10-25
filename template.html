@@ -38,7 +38,7 @@ td{display:flex;justify-content:space-between;gap:12px;text-align:right;border-b
 <label><input type="checkbox" id="rem"> Remember on this device</label><button class="btn" type="submit" id="ubtn">Unlock</button></form><div id="lmsg" class="small" style="margin-top:10px"></div></div>
 <div id="main" hidden><div id="app"></div>
 <div class="card" id="pmcard"><div class="pmh"><h2>⏰ Pre-Market list <span id="pmst"></span></h2>
-<form class="pmf" id="pmform" onsubmit="return addT(event)"><input id="pmin" placeholder="Ticker e.g. TSLA" maxlength="7" autocomplete="off" aria-label="Ticker">
+<form class="pmf" id="pmform" onsubmit="return addT(event)"><input id="pmin" placeholder="Ticker, e.g. AAPL" maxlength="7" autocomplete="off" aria-label="Ticker">
 <select id="pmlist" aria-label="List"><option value="premarket">Pre-Market</option><option value="watchlist">Watchlist (100 units)</option></select><button class="btn" type="submit" id="addbtn">+ Add</button><button class="btn s" type="button" onclick="pmSortGap=!pmSortGap;renderPM(DATA)" id="pmsort">Sort: gap %</button></form></div>
 <div id="pmmsg" class="small"></div><div id="pm"></div>
 <p class="small">+ Add / ✕ start a GitHub Actions job directly (no GitHub sign-in needed); it usually takes 1–2 minutes. A watchlist add records 100 units at the latest price (pre-market or regular price while trading, else the last close) with today's date. Gap = pre-market price (or the open, once the market opens) vs the previous close. Source: Yahoo Finance via yfinance; — = unavailable.</p></div>
