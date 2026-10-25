@@ -1,1 +1,6 @@
-{"tickers": ["GDX"]}
+{
+ "tickers": [
+  "GDX",
+  "NEM"
+ ]
+}
