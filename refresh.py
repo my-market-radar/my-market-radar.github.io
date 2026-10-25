@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Refresh watchlist data: intraday quote + 5-min sparkline, daily SMAs/RSI/52w.
-Builds the site into _site/ with the data encrypted (AES-GCM, key = PBKDF2 of SITE_PASSWORD).
+Builds the site into _site/ with all data encrypted (see sitecrypt.py). Config is read from static.enc.json / premarket.enc.json.
 Exits early outside 4:00-16:10 ET on weekdays unless FORCE=1 (or --force).
 Env: SITE_PASSWORD (required), POSITIONS_JSON (optional, {"GDX":{"entry_price":80.2,"units":100,"date_added":"2026-10-25"}})."""
 import json, datetime, pathlib, os, sys, zoneinfo, shutil
@@ -16,7 +16,7 @@ import yfinance as yf
 D = pathlib.Path(__file__).parent
 sys.path.insert(0, str(D))
 import sitecrypt
-cfg = json.loads((D/"static.json").read_text())
+cfg = sitecrypt.load(D/"static.enc.json")
 # Entry price / units / date added live in the POSITIONS_JSON secret, not in the public repo.
 POS = json.loads(os.environ.get("POSITIONS_JSON") or "{}")
 for p in cfg["portfolio"]: p.update(POS.get(p["ticker"], {}))
@@ -106,7 +106,7 @@ def premarket_row(sym):
         out["gap"] = round(ref - prev, 2); out["gap_pct"] = round((ref/prev - 1)*100, 2); out["gap_basis"] = "open" if out.get("open") is not None else "pre-market"
     if out.get("price") is not None and prev: out["day_pct"] = round((out["price"]/prev - 1)*100, 2)
     return out
-pml = json.loads((D/"premarket.json").read_text())["tickers"] if (D/"premarket.json").exists() else []
+pml = (sitecrypt.load(D/"premarket.enc.json") or {"tickers": []})["tickers"]
 premarket = []
 for sym in pml:
     try: premarket.append(premarket_row(sym))
@@ -119,6 +119,6 @@ out = D/"_site"
 shutil.rmtree(out, ignore_errors=True); out.mkdir()
 shutil.copy(D/"template.html", out/"index.html")
 (out/"data.enc.json").write_text(json.dumps(sitecrypt.encrypt(data, PASSWORD)))
-if (D/"summaries.json").exists(): shutil.copy(D/"summaries.json", out/"summaries.json")
+if (D/"summaries.enc.json").exists(): shutil.copy(D/"summaries.enc.json", out/"summaries.enc.json")  # already encrypted
 (out/".nojekyll").write_text("")
 print("built _site", data["updated"], [(r["ticker"], r["price"], r["day_pct"]) for r in rows], [(r["ticker"], r.get("pm_price"), r.get("gap_pct")) for r in premarket])

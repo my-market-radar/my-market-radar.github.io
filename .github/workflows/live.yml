@@ -10,7 +10,7 @@ on:
         default: false
   push:
     branches: [main]
-    paths: [template.html, refresh.py, sitecrypt.py, static.json, premarket.json, summaries.json, .github/workflows/live.yml]
+    paths: [template.html, refresh.py, sitecrypt.py, static.enc.json, premarket.enc.json, summaries.enc.json, .github/workflows/live.yml]
 permissions:
   contents: read
   pages: write

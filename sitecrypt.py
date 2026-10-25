@@ -1,28 +1,57 @@
-"""Encrypt the page data so only someone with the site password can read it.
+"""Encryption for everything the site serves or stores as data.
 
-AES-256-GCM with a key derived by PBKDF2-SHA256. The browser does the same derivation with WebCrypto
-(see template.html), so the password never leaves the device and the repo holds no secret.
+Format v2 (decrypted in the browser with WebCrypto, see template.html):
+  master  = PBKDF2-SHA256(password, msalt, iter=310000) -> 32 bytes   (msalt is a fixed, public, site-wide salt)
+  filekey = HKDF-SHA256(master, salt=random 16 bytes per write, info="mmr-file-v2") -> AES-256 key
+  ct      = AES-256-GCM(filekey, iv=random 12 bytes per write, JSON) (tag appended, as WebCrypto expects)
+A fixed msalt lets the browser run the slow PBKDF2 once and optionally remember the master key (never the password);
+the random per-write salt + IV mean every file and every write gets a fresh key and nonce.
+CLI:  SITE_PASSWORD=... python3 sitecrypt.py enc in.json out.enc.json   |   ... dec in.enc.json
 """
-import base64, json, os
+import base64, json, os, sys, pathlib
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes
 
-# A fixed, site-specific salt lets the browser cache the derived key between refreshes.
-# It doesn't need to be secret; the password does.
-SALT = b"my-market-radar/v1/2026-10-25"
+MSALT = b"my-market-radar/v1/2026-10-25"
 ITERATIONS = 310_000
+INFO = b"mmr-file-v2"
+_cache = {}
+b64e = lambda b: base64.b64encode(b).decode()
+b64d = base64.b64decode
 
-def derive_key(password: str) -> bytes:
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=SALT, iterations=ITERATIONS)
-    return kdf.derive(password.encode())
+def master_key(password: str, msalt: bytes = MSALT, it: int = ITERATIONS) -> bytes:
+    k = (password, msalt, it)
+    if k not in _cache:
+        _cache[k] = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=msalt, iterations=it).derive(password.encode())
+    return _cache[k]
+
+def _file_key(master: bytes, salt: bytes) -> bytes:
+    return HKDF(algorithm=hashes.SHA256(), length=32, salt=salt, info=INFO).derive(master)
 
 def encrypt(obj, password: str) -> dict:
-    iv = os.urandom(12)
-    ct = AESGCM(derive_key(password)).encrypt(iv, json.dumps(obj, separators=(",", ":")).encode(), None)
-    b64 = lambda b: base64.b64encode(b).decode()
-    return {"v": 1, "kdf": "PBKDF2-SHA256", "iter": ITERATIONS, "salt": b64(SALT), "iv": b64(iv), "ct": b64(ct)}
+    salt, iv = os.urandom(16), os.urandom(12)
+    ct = AESGCM(_file_key(master_key(password), salt)).encrypt(iv, json.dumps(obj, separators=(",", ":")).encode(), None)
+    return {"v": 2, "kdf": "PBKDF2-SHA256+HKDF-SHA256", "iter": ITERATIONS, "msalt": b64e(MSALT),
+            "salt": b64e(salt), "iv": b64e(iv), "ct": b64e(ct)}
 
-def decrypt(payload: dict, password: str):
-    d = lambda s: base64.b64decode(s)
-    return json.loads(AESGCM(derive_key(password)).decrypt(d(payload["iv"]), d(payload["ct"]), None))
+def decrypt(p: dict, password: str):
+    m = master_key(password, b64d(p["msalt"]), p["iter"])
+    return json.loads(AESGCM(_file_key(m, b64d(p["salt"]))).decrypt(b64d(p["iv"]), b64d(p["ct"]), None))
+
+def password():
+    pw = os.environ.get("SITE_PASSWORD") or os.environ.get("WATCHLIST_SITE_PASSWORD")
+    if not pw: sys.exit("SITE_PASSWORD is not set; refusing to read or write site data.")
+    return pw
+
+def load(path, default=None):
+    p = pathlib.Path(path)
+    return decrypt(json.loads(p.read_text()), password()) if p.exists() else default
+
+def save(path, obj):
+    pathlib.Path(path).write_text(json.dumps(encrypt(obj, password())) + "\n")
+
+if __name__ == "__main__":
+    if sys.argv[1] == "enc": save(sys.argv[3], json.loads(pathlib.Path(sys.argv[2]).read_text()))
+    elif sys.argv[1] == "dec": print(json.dumps(load(sys.argv[2]), indent=1))

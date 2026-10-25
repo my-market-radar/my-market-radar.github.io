@@ -28,12 +28,12 @@ td{display:flex;justify-content:space-between;gap:12px;text-align:right;border-b
 .x{border:0;background:#fdeaea;color:var(--dn);border-radius:50%;width:24px;height:24px;cursor:pointer;font-weight:700}tr.pend td{opacity:.65;font-style:italic}
 .pm td:first-child{border-left:5px solid var(--cyan)}#pmmsg{min-height:16px}
 @media(max-width:820px){.pm tr{border:1px solid #e8ebf2;border-left:5px solid var(--cyan);border-radius:12px;margin-bottom:12px;padding:6px 10px}.pm td:first-child{border-left:0}}
-.lock{max-width:380px;margin:12vh auto 0;text-align:center}.lock h1{margin:6px 0 4px;font-size:26px}.lock form{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+.lock{max-width:400px;margin:12vh auto 0;text-align:center;color:#fff;background:linear-gradient(135deg,#1e3a8a,#0891b2 55%,#d4a017);box-shadow:0 18px 50px rgba(8,145,178,.35)}.lock .small,.lock label{color:#e0f2fe!important}.lerr{display:inline-block;background:#fde8e8;color:#b91c1c;border-radius:8px;padding:6px 10px;font-weight:600}.lock .btn{background:#f5c542;color:#1e3a8a;font-weight:700}.lock h1{margin:6px 0 4px;font-size:26px}.lock form{display:flex;flex-direction:column;gap:10px;margin-top:18px}
 .lock input[type=password]{border:2px solid #dbe4ff;border-radius:10px;padding:11px 12px;font-size:16px}.lock input[type=password]:focus{outline:none;border-color:var(--cyan)}
 .lock label{font-size:13px;color:var(--mut);display:flex;gap:6px;align-items:center;justify-content:center}.lockbtn{border:0;background:rgba(255,255,255,.22);color:#fff;border-radius:999px;padding:3px 10px;font-size:12px;cursor:pointer;margin-left:6px}
 </style></head><body><div class="wrap"><div id="lock" class="card lock" hidden><div style="font-size:34px">🔒</div><h1>My Market Radar</h1><div class="small">Enter the site password to view the watchlist.</div>
 <form onsubmit="return unlock(event)"><input type="password" id="pw" placeholder="Password" autocomplete="current-password" aria-label="Password" required>
-<label><input type="checkbox" id="rem" checked> Remember on this device</label><button class="btn" type="submit" id="ubtn">Unlock</button></form><div id="lmsg" class="small" style="margin-top:10px"></div></div>
+<label><input type="checkbox" id="rem"> Remember on this device</label><button class="btn" type="submit" id="ubtn">Unlock</button></form><div id="lmsg" class="small" style="margin-top:10px"></div></div>
 <div id="main" hidden><div id="app"></div>
 <div class="card" id="pmcard"><div class="pmh"><h2>⏰ Pre-Market list <span id="pmst"></span></h2>
 <form class="pmf" id="pmform" onsubmit="return addPM(event)"><input id="pmin" placeholder="Ticker e.g. TSLA" maxlength="7" autocomplete="off" aria-label="Ticker">
@@ -67,7 +67,7 @@ h+=`<tr class="row"><td data-l="Ticker"><div><span class="tk">${r.ticker}</span>
 <td data-l="Analysts"><div>${a?`<b class="up">${a.rating}</b><div class="small">${a.analysts} analysts<br>${a.breakdown}</div>PT ${$(a.target)} <span class="${cls(a.target-r.price)}">${sg((a.target/r.price-1)*100).replace(/(\.\d)\d$/,'$1')}%</span><div class="small"><a href="${a.url}">${a.source.split(' ')[0]}</a> ${a.as_of}</div>`:'N/A'}</div></td></tr>`;prev[r.ticker]=r.price;{const s=SUMS[r.ticker];if(s&&s.summary){const E=x=>String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');const g=s.generated_at?new Date(s.generated_at).toLocaleTimeString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit'})+' ET':'';h+=`<tr class="ai"><td colspan="9"><details class="aic"${aiOpen[r.ticker]===false?'':' open'} ontoggle="aiOpen['${r.ticker}']=this.open"><summary>✨ AI Insight by Grok Bot · ${r.ticker} <span class="small" style="font-weight:400">${g?'generated '+g:''}</span></summary><p>${E(s.summary)}</p>${(s.bullets||[]).length?`<ul style="margin:4px 0 8px 18px;font-size:13.5px">${s.bullets.map(x=>`<li>${E(x)}</li>`).join('')}</ul>`:''}<div class="cites">${(s.citations||[]).map((c,i)=>`<a href="${E(c.url)}" target="_blank" rel="noopener">[${i+1}] ${E(c.title||c.url)}</a>`).join('')}</div><div class="small" style="margin-top:6px">AI-generated summary. It may contain errors and is not investment advice.</div></details></td></tr>`}}}
 h+=`</tbody></table><p class="small">${d.note}</p></div>`;document.getElementById('app').innerHTML=h;h='';renderPM(d);const g=d.gdx_detail;
 if(g){const pal=['var(--gold)','var(--blue)','var(--cyan)'],mx=Math.max(...g.holdings.map(x=>x[1]));
-h+=`<div class="card gold"><h2>GDX detail · gold miners</h2><dl>${g.gold.map(x=>`<dt>${x[0]}</dt><dd>${x[1]}</dd>`).join('')}</dl></div>
+h+=`<div class="card gold"><h2>${R[0]?R[0].ticker+' ':''}detail · gold miners</h2><dl>${g.gold.map(x=>`<dt>${x[0]}</dt><dd>${x[1]}</dd>`).join('')}</dl></div>
 <div class="card"><h2>Top holdings</h2>${g.holdings.map((x,i)=>`<div class="bar"><span>${x[0]}</span><div class="t"><i style="width:${x[1]/mx*100}%;background:${pal[i%3]}"></i></div><b>${x[1].toFixed(2)}%</b></div>`).join('')}<p class="small">Share of fund assets, via stockanalysis.com</p></div>
 <div class="card"><h2>What drove this week</h2>${g.news.map(x=>`<div class="news"><span class="tag ${x[0]}">${{bull:'Bullish',bear:'Bearish',neutral:'Mixed'}[x[0]]}</span><div>${x[1]}</div></div>`).join('')}
 <h2 style="margin-top:18px">Sources</h2><ul>${g.sources.map(x=>`<li><a href="${x[1]}">${x[0]}</a></li>`).join('')}</ul></div>`}
@@ -99,24 +99,27 @@ function renderPM(d){if(!d)return;const st=document.getElementById('pmst'),[mc]=
   <td data-l="Remove"><button class="x" title="Remove ${r.ticker}" onclick="rmPM('${r.ticker}')">✕</button></td></tr>`}
  if(!R.length)h+=`<tr><td colspan="9">No tickers yet. Add one above.</td></tr>`;
  document.getElementById('pm').innerHTML=h+'</tbody></table>'}
-let SUMS={};async function loadSums(){try{const r=await fetch('summaries.json?t='+Date.now(),{cache:'no-store'});if(r.ok)SUMS=await r.json()||{}}catch(e){}}
-// The page data is AES-GCM encrypted with a key derived from the site password (PBKDF2-SHA256), matching sitecrypt.py.
-const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0)),KS='mmrKey';
-async function fetchEnc(){const r=await fetch('data.enc.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('fetch '+r.status);return r.json()}
-async function deriveKey(pw,e){const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
- return crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt:b64(e.salt),iterations:e.iter},base,{name:'AES-GCM',length:256},true,['decrypt'])}
-async function decryptWith(k,e){return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(e.iv)},k,b64(e.ct))))}
-function saveKey(raw,e){try{localStorage.setItem(KS,JSON.stringify({k:btoa(String.fromCharCode(...new Uint8Array(raw))),salt:e.salt,iter:e.iter}))}catch(x){}}
-async function storedKey(e){try{const s=JSON.parse(localStorage.getItem(KS)||'null');if(!s||s.salt!=e.salt||s.iter!=e.iter)return null;
- return crypto.subtle.importKey('raw',b64(s.k),{name:'AES-GCM'},false,['decrypt'])}catch(x){return null}}
+let SUMS={};
+// All data files are encrypted (format v2, see sitecrypt.py): master = PBKDF2-SHA256(password, msalt, iter);
+// per file: key = HKDF-SHA256(master, salt, "mmr-file-v2"), then AES-256-GCM. KEY holds the master key in memory only.
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0)),KS='mmrKey2',TE=new TextEncoder();
+async function fetchJ(n){const r=await fetch(n+'?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('fetch '+r.status);return r.json()}
+async function masterBits(pw,e){const base=await crypto.subtle.importKey('raw',TE.encode(pw),'PBKDF2',false,['deriveBits']);
+ return crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:b64(e.msalt),iterations:e.iter},base,256)}
+const importMaster=raw=>crypto.subtle.importKey('raw',raw,'HKDF',false,['deriveKey']);
+async function dec(mk,e){const k=await crypto.subtle.deriveKey({name:'HKDF',hash:'SHA-256',salt:b64(e.salt),info:TE.encode('mmr-file-v2')},mk,{name:'AES-GCM',length:256},false,['decrypt']);
+ return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(e.iv)},k,b64(e.ct))))}
+async function loadSums(){if(!KEY)return;try{SUMS=await dec(KEY,await fetchJ('summaries.enc.json'))||{}}catch(e){}}
+function saveKey(raw,e){try{localStorage.setItem(KS,JSON.stringify({k:btoa(String.fromCharCode(...new Uint8Array(raw))),msalt:e.msalt,iter:e.iter}))}catch(x){}}
+async function storedKey(e){try{const s=JSON.parse(localStorage.getItem(KS)||'null');if(!s||s.msalt!=e.msalt||s.iter!=e.iter)return null;return importMaster(b64(s.k))}catch(x){return null}}
 function show(on){document.getElementById('lock').hidden=on;document.getElementById('main').hidden=!on}
-function lockSite(){KEY=null;DATA=null;try{localStorage.removeItem(KS)}catch(x){}document.getElementById('pw').value='';document.getElementById('lmsg').textContent='';show(false)}
+function lockSite(){KEY=null;DATA=null;SUMS={};try{localStorage.removeItem(KS);localStorage.removeItem('mmrKey')}catch(x){}document.getElementById('pw').value='';document.getElementById('lmsg').textContent='';show(false)}
 async function unlock(ev){ev.preventDefault();const m=document.getElementById('lmsg'),b=document.getElementById('ubtn');b.disabled=true;m.textContent='Unlocking…';
- try{const e=await fetchEnc(),k=await deriveKey(document.getElementById('pw').value,e);let d;try{d=await decryptWith(k,e)}catch(x){m.innerHTML='<span class="dn">Wrong password.</span>';return false}
-  KEY=k;if(document.getElementById('rem').checked)saveKey(await crypto.subtle.exportKey('raw',k),e);DATA=d;show(true);await loadSums();render(DATA);next=60;m.textContent=''}
- catch(x){m.innerHTML='<span class="dn">Couldn\'t load the data. Check your connection and try again.</span>'}finally{b.disabled=false}return false}
-async function poll(){if(!KEY)return;await loadSums();try{const e=await fetchEnc();DATA=await decryptWith(KEY,e)}catch(x){if(x&&x.name=='OperationError'){lockSite();return}}render(DATA);next=60}
-setInterval(()=>{if(!KEY||document.hidden)return;next--;if(next<=0)poll();const c=document.getElementById('cd');if(c)c.textContent='refreshing in '+next+'s'},1000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&KEY&&next<55)poll()});
-(async()=>{try{const e=await fetchEnc(),k=await storedKey(e);if(k){const d=await decryptWith(k,e);KEY=k;DATA=d;show(true);await loadSums();render(DATA);return}}catch(x){}show(false);document.getElementById('pw').focus()})();
+ try{const e=await fetchJ('data.enc.json'),raw=await masterBits(document.getElementById('pw').value,e),k=await importMaster(raw);let d;
+  try{d=await dec(k,e)}catch(x){m.innerHTML='<span class="lerr">❌ Wrong password. Try again.</span>';document.getElementById('pw').select();return false}
+  KEY=k;if(document.getElementById('rem').checked)saveKey(raw,e);DATA=d;document.getElementById('pw').value='';show(true);await loadSums();render(DATA);next=60;m.textContent=''}
+ catch(x){m.innerHTML='<span class="lerr">Couldn\'t load the data. Check your connection and try again.</span>'}finally{b.disabled=false}return false}
+async function poll(){if(!KEY)return;await loadSums();try{DATA=await dec(KEY,await fetchJ('data.enc.json'))}catch(x){if(x&&x.name=='OperationError'){lockSite();return}}render(DATA);next=60}
+setInterval(()=>{if(!KEY)return;next--;if(next<=0)poll();const c=document.getElementById('cd');if(c)c.textContent='refreshing in '+Math.max(next,0)+'s'},1000);
+(async()=>{try{const e=await fetchJ('data.enc.json'),k=await storedKey(e);if(k){const d=await dec(k,e);KEY=k;DATA=d;show(true);await loadSums();render(DATA);return}}catch(x){}show(false);document.getElementById('pw').focus()})();
 </script></body></html>
