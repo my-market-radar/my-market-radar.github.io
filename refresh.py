@@ -1,16 +1,23 @@
 #!/usr/bin/env python3
 """Refresh watchlist data: intraday quote + 5-min sparkline, daily SMAs/RSI/52w.
-Exits early outside 4:00-16:10 ET on weekdays unless FORCE=1 (or --force)."""
-import json, datetime, pathlib, os, sys, zoneinfo
+Builds the site into _site/ with the data encrypted (AES-GCM, key = PBKDF2 of SITE_PASSWORD).
+Exits early outside 4:00-16:10 ET on weekdays unless FORCE=1 (or --force).
+Env: SITE_PASSWORD (required), POSITIONS_JSON (optional, {"GDX":{"entry_price":80.2,"units":100,"date_added":"2026-10-25"}})."""
+import json, datetime, pathlib, os, sys, zoneinfo, base64, shutil
 ET = zoneinfo.ZoneInfo("America/New_York")
 now = datetime.datetime.now(ET)
 force = os.environ.get("FORCE") in ("1", "true") or "--force" in sys.argv
 in_hours = now.weekday() < 5 and datetime.time(4, 0) <= now.time() <= datetime.time(16, 10)
 if not (in_hours or force):
     print(f"Outside market hours ({now:%a %H:%M ET}); skipping. Use FORCE=1 to override."); sys.exit(0)
+PASSWORD = os.environ.get("SITE_PASSWORD", "")
+if not PASSWORD: sys.exit("SITE_PASSWORD is not set; refusing to publish unencrypted data.")
 import yfinance as yf
 D = pathlib.Path(__file__).parent
 cfg = json.loads((D/"static.json").read_text())
+# Entry price / units / date added live in the POSITIONS_JSON secret, not in the public repo.
+POS = json.loads(os.environ.get("POSITIONS_JSON") or "{}")
+for p in cfg["portfolio"]: p.update(POS.get(p["ticker"], {}))
 def phase(t):
     if t.weekday() >= 5: return "closed"
     m = t.hour*60 + t.minute
@@ -39,8 +46,10 @@ for p in cfg["portfolio"]:
              low52=round(float(min(last52.min(), price)), 2), high52=round(float(max(last52.max(), price)), 2),
              sma20=round(float(hist.tail(20).mean()), 2), sma50=round(float(hist.tail(50).mean()), 2),
              sma200=round(float(hist.tail(200).mean()), 2), rsi14=round(float(100-100/(1+g.iloc[-1]/l.iloc[-1])), 1))
-    r["ret_pct"] = round((price/p["entry_price"]-1)*100, 2); r["value"] = round(p["units"]*price, 2)
-    r["pl"] = round(p["units"]*(price-p["entry_price"]), 2)
+    ep, u = p.get("entry_price"), p.get("units")
+    r["ret_pct"] = round((price/ep-1)*100, 2) if ep else None
+    r["value"] = round(u*price, 2) if u else None
+    r["pl"] = round(u*(price-ep), 2) if (u and ep) else None
     rows.append(r)
 
 def premarket_row(sym):
@@ -68,6 +77,10 @@ def premarket_row(sym):
         loc = bars.index.tz_convert(ET); mins = loc.hour*60 + loc.minute
         day = loc.date == sess
         pre = bars[day & (mins >= 240) & (mins < 570)]; reg = bars[day & (mins >= 570) & (mins < 960)]
+    if pre is not None and len(pre) and prev:
+        # Yahoo pads quiet pre-market slots with flat, zero-volume bars at the previous close. Those aren't trades.
+        flat = (pre["Volume"] <= 0) & (pre["High"] == pre["Low"]) & ((pre["Close"] - prev).abs() < 0.005)
+        pre = pre[~flat]
     if pre is not None and len(pre):
         out["pm_high"] = round(float(pre["High"].max()), 2); out["pm_low"] = round(float(pre["Low"].min()), 2)
         v = int(pre["Volume"].sum()); out["pm_volume"] = v if v > 0 else None
@@ -78,6 +91,8 @@ def premarket_row(sym):
         out["pm_price"] = round(float(pmp), 2)
         if info.get("preMarketTime"): out["pm_time"] = datetime.datetime.fromtimestamp(info["preMarketTime"], ET).strftime("%a %b %d %I:%M %p ET")
     elif out.get("pm_last") is not None: out["pm_price"] = out["pm_last"]
+    if info.get("preMarketVolume"): out["pm_volume"] = int(info["preMarketVolume"])
+    if out.get("pm_price") is None: out["pm_note"] = "no pre-market trades"
     if reg is not None and len(reg):
         out["open"] = round(float(info.get("regularMarketOpen") or reg["Open"].iloc[0]), 2)  # official open preferred over first 5m bar
         try: out["price"] = round(float(tk.fast_info.last_price), 2)
