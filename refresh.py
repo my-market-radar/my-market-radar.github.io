@@ -79,7 +79,7 @@ def premarket_row(sym):
         if info.get("preMarketTime"): out["pm_time"] = datetime.datetime.fromtimestamp(info["preMarketTime"], ET).strftime("%a %b %d %I:%M %p ET")
     elif out.get("pm_last") is not None: out["pm_price"] = out["pm_last"]
     if reg is not None and len(reg):
-        out["open"] = round(float(reg["Open"].iloc[0]), 2)
+        out["open"] = round(float(info.get("regularMarketOpen") or reg["Open"].iloc[0]), 2)  # official open preferred over first 5m bar
         try: out["price"] = round(float(tk.fast_info.last_price), 2)
         except Exception: out["price"] = round(float(reg["Close"].iloc[-1]), 2)
         out["quote_time"] = (reg.index[-1] + datetime.timedelta(minutes=5)).astimezone(ET).strftime("%a %b %d %I:%M %p ET")

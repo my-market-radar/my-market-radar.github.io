@@ -1,6 +1,6 @@
 {
- "updated": "Sun Oct 25, 2026 01:11:23 PM ET",
- "updated_iso": "2026-10-25T13:11:23.200770-04:00",
+ "updated": "Sun Oct 25, 2026 01:12:43 PM ET",
+ "updated_iso": "2026-10-25T13:12:43.658469-04:00",
  "market": "closed",
  "rows": [
   {
@@ -130,11 +130,11 @@
    "pm_last": 81.28,
    "pm_time": "Fri Oct 23 09:15 AM ET",
    "pm_price": 81.28,
-   "open": 81.58,
+   "open": 81.16,
    "price": 80.2,
    "quote_time": "Fri Oct 23 04:00 PM ET",
-   "gap": -0.11,
-   "gap_pct": -0.13,
+   "gap": -0.53,
+   "gap_pct": -0.65,
    "gap_basis": "open",
    "day_pct": -1.82
   },
@@ -149,11 +149,11 @@
    "pm_last": 114.11,
    "pm_time": "Fri Oct 23 09:15 AM ET",
    "pm_price": 114.11,
-   "open": 110.25,
+   "open": 110.28,
    "price": 108.87,
    "quote_time": "Fri Oct 23 04:00 PM ET",
-   "gap": -3.86,
-   "gap_pct": -3.38,
+   "gap": -3.83,
+   "gap_pct": -3.36,
    "gap_basis": "open",
    "day_pct": -4.59
   }
