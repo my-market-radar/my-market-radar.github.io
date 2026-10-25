@@ -1,0 +1,35 @@
+name: live
+on:
+  schedule:
+    - cron: '*/5 13-21 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Bypass market-hours check'
+        type: boolean
+        default: false
+permissions:
+  contents: write
+concurrency:
+  group: live
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install -q yfinance
+      - name: Refresh
+        env:
+          FORCE: ${{ inputs.force && '1' || '0' }}
+        run: python3 refresh.py
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898201+github-actions[bot]@users.noreply.github.com"
+          git add data.json index.html
+          if git diff --cached --quiet; then echo "No changes"; exit 0; fi
+          git commit -m "Live data $(TZ=America/New_York date '+%F %H:%M %Z')"
+          git pull --rebase -q origin main && git push -q origin main

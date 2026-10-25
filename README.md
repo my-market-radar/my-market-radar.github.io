@@ -13,3 +13,7 @@ pip install yfinance
 python3 refresh.py   # re-pulls prices, 20/50/200-day SMA, RSI(14), 52-week range; rewrites data.json + index.html
 ./publish.sh         # commits and pushes to GitHub Pages
 ```
+
+## Live updates
+The GitHub Actions workflow `.github/workflows/live.yml` runs `refresh.py` every 5 minutes on weekdays (cron `*/5 13-21 * * 1-5` UTC). The script skips any run outside 9:25 AM–4:10 PM ET, and the workflow commits `data.json` and `index.html` only when they change. The page re-fetches `data.json` every 60 seconds.
+To run it manually: `gh workflow run live.yml -f force=true`. GitHub can delay or skip scheduled runs when it's under load.
