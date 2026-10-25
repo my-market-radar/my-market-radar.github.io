@@ -5,8 +5,9 @@ on:
 permissions:
   contents: write
   issues: write
+  actions: write
 concurrency:
-  group: live
+  group: premarket-list
   cancel-in-progress: false
 jobs:
   manage:
@@ -23,17 +24,18 @@ jobs:
         env:
           ISSUE_TITLE: ${{ github.event.issue.title }}
         run: python3 .github/scripts/pm_manage.py
-      - name: Refresh and commit
+      - name: Commit the list and rebuild the site
         if: steps.pm.outputs.changed == 'true'
         env:
-          FORCE: '1'
+          GH_TOKEN: ${{ github.token }}
         run: |
-          python3 refresh.py
           git config user.name "github-actions[bot]"
           git config user.email "41898201+github-actions[bot]@users.noreply.github.com"
-          git add premarket.json data.json index.html
-          git commit -m "Pre-market list: ${{ steps.pm.outputs.changed == 'true' && 'update' || '' }} (#${{ github.event.issue.number }})"
+          git add premarket.json
+          git commit -m "Pre-market list update (#${{ github.event.issue.number }})"
           git pull --rebase -q origin main && git push -q origin main
+          # Pushes made with GITHUB_TOKEN don't trigger other workflows, so start the site build directly.
+          gh workflow run live.yml -R ${{ github.repository }} -f force=true
       - name: Comment and close
         env:
           GH_TOKEN: ${{ github.token }}

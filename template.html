@@ -28,37 +28,43 @@ td{display:flex;justify-content:space-between;gap:12px;text-align:right;border-b
 .x{border:0;background:#fdeaea;color:var(--dn);border-radius:50%;width:24px;height:24px;cursor:pointer;font-weight:700}tr.pend td{opacity:.65;font-style:italic}
 .pm td:first-child{border-left:5px solid var(--cyan)}#pmmsg{min-height:16px}
 @media(max-width:820px){.pm tr{border:1px solid #e8ebf2;border-left:5px solid var(--cyan);border-radius:12px;margin-bottom:12px;padding:6px 10px}.pm td:first-child{border-left:0}}
-</style></head><body><div class="wrap"><div id="app"></div>
+.lock{max-width:380px;margin:12vh auto 0;text-align:center}.lock h1{margin:6px 0 4px;font-size:26px}.lock form{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+.lock input[type=password]{border:2px solid #dbe4ff;border-radius:10px;padding:11px 12px;font-size:16px}.lock input[type=password]:focus{outline:none;border-color:var(--cyan)}
+.lock label{font-size:13px;color:var(--mut);display:flex;gap:6px;align-items:center;justify-content:center}.lockbtn{border:0;background:rgba(255,255,255,.22);color:#fff;border-radius:999px;padding:3px 10px;font-size:12px;cursor:pointer;margin-left:6px}
+</style></head><body><div class="wrap"><div id="lock" class="card lock" hidden><div style="font-size:34px">🔒</div><h1>My Market Radar</h1><div class="small">Enter the site password to view the watchlist.</div>
+<form onsubmit="return unlock(event)"><input type="password" id="pw" placeholder="Password" autocomplete="current-password" aria-label="Password" required>
+<label><input type="checkbox" id="rem" checked> Remember on this device</label><button class="btn" type="submit" id="ubtn">Unlock</button></form><div id="lmsg" class="small" style="margin-top:10px"></div></div>
+<div id="main" hidden><div id="app"></div>
 <div class="card" id="pmcard"><div class="pmh"><h2>⏰ Pre-Market list <span id="pmst"></span></h2>
 <form class="pmf" id="pmform" onsubmit="return addPM(event)"><input id="pmin" placeholder="Ticker e.g. TSLA" maxlength="7" autocomplete="off" aria-label="Ticker">
 <button class="btn" type="submit">+ Add ticker</button><button class="btn s" type="button" onclick="pmSortGap=!pmSortGap;renderPM(DATA)" id="pmsort">Sort: gap %</button></form></div>
 <div id="pmmsg" class="small"></div><div id="pm"></div>
 <p class="small">Adding or removing a ticker opens a prefilled GitHub issue in a new tab. Click <b>Submit</b> (signed in as the repo owner), and a workflow updates the list within about a minute. Pending rows show right away on this device. Gap = pre-market price (or the open, once the market opens) vs the previous close. Source: Yahoo Finance via yfinance; — = unavailable.</p></div>
-<div id="app2"></div></div><script>
-let DATA=/*DATA*/null,prev={},next=60;
+<div id="app2"></div></div></div><script>
+let DATA=null,prev={},next=60,KEY=null,aiOpen={};
 const $=n=>n==null?'—':'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const cls=v=>v>0?'up':v<0?'dn':'fl',sg=v=>(v>0?'+':'')+v.toFixed(2);
 function mkt(){const t=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'})),d=t.getDay(),m=t.getHours()*60+t.getMinutes();
  if(d==0||d==6)return['closed','Closed'];if(m>=570&&m<960)return['open','LIVE • Market Open'];if(m>=240&&m<570)return['pre','Pre-market'];if(m>=960&&m<1200)return['after','After-hours'];return['closed','Closed']}
 function spark(a,up){if(!a||a.length<2)return'';const w=110,h=30,mn=Math.min(...a),mx=Math.max(...a),r=mx-mn||1;
  return`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline fill="none" stroke="${up?'#16a34a':'#dc2626'}" stroke-width="1.6" points="${a.map((v,i)=>`${(i/(a.length-1)*w).toFixed(1)},${(h-2-(v-mn)/r*(h-4)).toFixed(1)}`).join(' ')}"/></svg>`}
-function render(d){const R=d.rows,tv=R.reduce((a,r)=>a+r.value,0),tc=R.reduce((a,r)=>a+r.entry_price*r.units,0),tp=tv-tc,pct=tc?tp/tc*100:0,[mc,ml]=mkt();
+function render(d){if(!d)return;const R=d.rows,P=R.filter(r=>r.value!=null&&r.entry_price!=null),hp=P.length>0,tv=P.reduce((a,r)=>a+r.value,0),tc=P.reduce((a,r)=>a+r.entry_price*r.units,0),tp=tv-tc,pct=tc?tp/tc*100:0,[mc,ml]=mkt();
 const ma=(r,k,l)=>`<span class="${r.price>=r[k]?'up':'dn'}">${l} ${r[k].toFixed(2)}${r.price>=r[k]?'▲':'▼'}</span>`;
 let h=`<div class="hero"><div><span class="st ${mc}"><i></i>${ml}</span><h1>My Market Radar</h1><div>Watchlist · ${R.length} ticker${R.length>1?'s':''}</div>
-<div class="small" style="color:#fff">Last updated ${d.updated} · <span id="cd">refreshing in ${next}s</span></div></div>
-<div class="kp"><div class="k">Total value<b>${$(tv)}</b></div><div class="k">Total P/L<b>${tp<0?'-':'+'}${$(Math.abs(tp))}</b></div><div class="k">Total return<b>${sg(pct)}%</b></div></div></div>
+<div class="small" style="color:#fff">Last updated ${d.updated} · <span id="cd">refreshing in ${next}s</span><button class="lockbtn" onclick="lockSite()">🔒 Lock</button></div></div>
+<div class="kp"><div class="k">Total value<b>${hp?$(tv):'—'}</b></div><div class="k">Total P/L<b>${hp?(tp<0?'-':'+')+$(Math.abs(tp)):'—'}</b></div><div class="k">Total return<b>${hp?sg(pct)+'%':'—'}</b></div></div></div>
 <div class="card"><h2>Watchlist</h2><table><thead><tr><th>Ticker</th><th>Intraday</th><th>Current / Day</th><th>Entry</th><th>Return · P/L</th><th>Units · Value</th><th>52w range</th><th>Technicals</th><th>Analysts</th></tr></thead><tbody>`;
 for(const r of R){const pos=Math.max(0,Math.min(100,(r.price-r.low52)/(r.high52-r.low52)*100)),a=r.analyst,ch=prev[r.ticker]!=null&&prev[r.ticker]!==r.price?(r.price>prev[r.ticker]?'flash-up':'flash-dn'):'';
 h+=`<tr class="row"><td data-l="Ticker"><div><span class="tk">${r.ticker}</span><div class="small" style="margin-top:4px">${r.name}</div></div></td>
 <td data-l="Intraday">${spark(r.spark,r.day_chg>=0)}</td>
 <td data-l="Current / Day" class="${ch}"><div><span class="big">${$(r.price)}</span><br><span class="pill ${cls(r.day_chg)}">${sg(r.day_chg)} (${sg(r.day_pct)}%)</span>
 <div class="small">H ${$(r.day_high)} L ${$(r.day_low)}<br>Vol ${r.volume?r.volume.toLocaleString():'—'}<br>${r.quote_time||r.price_date}</div></div></td>
-<td data-l="Entry"><div>${$(r.entry_price)}<div class="small">${r.date_added}</div></div></td>
-<td data-l="Return · P/L"><div><span class="pill ${cls(r.ret_pct)}">${sg(r.ret_pct)}%</span><br><span class="${cls(r.pl)}">${r.pl<0?'-':''}${$(Math.abs(r.pl))}</span></div></td>
-<td data-l="Units · Value"><div>${r.units}<br>${$(r.value)}</div></td>
+<td data-l="Entry"><div>${$(r.entry_price)}<div class="small">${r.date_added||''}</div></div></td>
+<td data-l="Return · P/L">${r.ret_pct!=null?`<div><span class="pill ${cls(r.ret_pct)}">${sg(r.ret_pct)}%</span><br><span class="${cls(r.pl)}">${r.pl<0?'-':''}${$(Math.abs(r.pl))}</span></div>`:'—'}</td>
+<td data-l="Units · Value"><div>${r.units??'—'}<br>${$(r.value)}</div></td>
 <td data-l="52w range"><div>${$(r.low52)} – ${$(r.high52)}<div class="rng"><i style="left:${pos}%"></i></div><div class="small">${pos.toFixed(0)}% of range</div></div></td>
 <td data-l="Technicals"><div class="small" style="font-size:12px">${ma(r,'sma20','20d')}<br>${ma(r,'sma50','50d')}<br>${ma(r,'sma200','200d')}<br><b>RSI ${r.rsi14}</b></div></td>
-<td data-l="Analysts"><div>${a?`<b class="up">${a.rating}</b><div class="small">${a.analysts} analysts<br>${a.breakdown}</div>PT ${$(a.target)} <span class="${cls(a.target-r.price)}">${sg((a.target/r.price-1)*100).replace(/(\.\d)\d$/,'$1')}%</span><div class="small"><a href="${a.url}">${a.source.split(' ')[0]}</a> ${a.as_of}</div>`:'N/A'}</div></td></tr>`;prev[r.ticker]=r.price;{const s=SUMS[r.ticker];if(s&&s.summary){const E=x=>String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');const g=s.generated_at?new Date(s.generated_at).toLocaleTimeString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit'})+' ET':'';h+=`<tr class="ai"><td colspan="9"><details class="aic" open><summary>✨ AI Insight by Grok Bot · ${r.ticker} <span class="small" style="font-weight:400">${g?'generated '+g:''}</span></summary><p>${E(s.summary)}</p>${(s.bullets||[]).length?`<ul style="margin:4px 0 8px 18px;font-size:13.5px">${s.bullets.map(x=>`<li>${E(x)}</li>`).join('')}</ul>`:''}<div class="cites">${(s.citations||[]).map((c,i)=>`<a href="${E(c.url)}" target="_blank" rel="noopener">[${i+1}] ${E(c.title||c.url)}</a>`).join('')}</div><div class="small" style="margin-top:6px">AI-generated summary. It may contain errors and is not investment advice.</div></details></td></tr>`}}}
+<td data-l="Analysts"><div>${a?`<b class="up">${a.rating}</b><div class="small">${a.analysts} analysts<br>${a.breakdown}</div>PT ${$(a.target)} <span class="${cls(a.target-r.price)}">${sg((a.target/r.price-1)*100).replace(/(\.\d)\d$/,'$1')}%</span><div class="small"><a href="${a.url}">${a.source.split(' ')[0]}</a> ${a.as_of}</div>`:'N/A'}</div></td></tr>`;prev[r.ticker]=r.price;{const s=SUMS[r.ticker];if(s&&s.summary){const E=x=>String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');const g=s.generated_at?new Date(s.generated_at).toLocaleTimeString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit'})+' ET':'';h+=`<tr class="ai"><td colspan="9"><details class="aic"${aiOpen[r.ticker]===false?'':' open'} ontoggle="aiOpen['${r.ticker}']=this.open"><summary>✨ AI Insight by Grok Bot · ${r.ticker} <span class="small" style="font-weight:400">${g?'generated '+g:''}</span></summary><p>${E(s.summary)}</p>${(s.bullets||[]).length?`<ul style="margin:4px 0 8px 18px;font-size:13.5px">${s.bullets.map(x=>`<li>${E(x)}</li>`).join('')}</ul>`:''}<div class="cites">${(s.citations||[]).map((c,i)=>`<a href="${E(c.url)}" target="_blank" rel="noopener">[${i+1}] ${E(c.title||c.url)}</a>`).join('')}</div><div class="small" style="margin-top:6px">AI-generated summary. It may contain errors and is not investment advice.</div></details></td></tr>`}}}
 h+=`</tbody></table><p class="small">${d.note}</p></div>`;document.getElementById('app').innerHTML=h;h='';renderPM(d);const g=d.gdx_detail;
 if(g){const pal=['var(--gold)','var(--blue)','var(--cyan)'],mx=Math.max(...g.holdings.map(x=>x[1]));
 h+=`<div class="card gold"><h2>GDX detail · gold miners</h2><dl>${g.gold.map(x=>`<dt>${x[0]}</dt><dd>${x[1]}</dd>`).join('')}</dl></div>
@@ -86,7 +92,7 @@ function renderPM(d){if(!d)return;const st=document.getElementById('pmst'),[mc]=
   const rm=p[r.ticker]&&p[r.ticker].act=='remove';
   h+=`<tr${rm?' class="pend"':''}><td data-l="Ticker"><div><span class="tk">${r.ticker}</span><div class="small" style="margin-top:4px">${r.name||''}${rm?' · removal pending':''}</div></div></td>
   <td data-l="Gap">${r.gap_pct!=null?`<div><span class="gap ${cls(r.gap_pct)}">${sg(r.gap_pct)}%</span><div class="small">${r.gap<0?'-':'+'}${$(Math.abs(r.gap))} · vs ${r.gap_basis}</div></div>`:'—'}</td>
-  <td data-l="Pre-market"><b>${$(r.pm_price)}</b></td><td data-l="Prev close">${$(r.prev_close)}</td><td data-l="Open">${$(r.open)}</td>
+  <td data-l="Pre-market"><div><b>${$(r.pm_price)}</b>${r.pm_note?`<div class="small">${r.pm_note}</div>`:''}</div></td><td data-l="Prev close">${$(r.prev_close)}</td><td data-l="Open">${$(r.open)}</td>
   <td data-l="Price">${r.price!=null?`<div><b>${$(r.price)}</b>${r.day_pct!=null?`<br><span class="pill ${cls(r.day_pct)}">${sg(r.day_pct)}%</span>`:''}</div>`:'—'}</td>
   <td data-l="Pre-mkt H / L · Vol"><div>${$(r.pm_high)} / ${$(r.pm_low)}<div class="small">Vol ${vol(r.pm_volume)}</div></div></td>
   <td data-l="Last quote"><div class="small">${r.quote_time||r.pm_time||'—'}${r.session?`<br>session ${r.session}`:''}${r.error?`<br><span class="dn">${r.error}</span>`:''}</div></td>
@@ -94,7 +100,23 @@ function renderPM(d){if(!d)return;const st=document.getElementById('pmst'),[mc]=
  if(!R.length)h+=`<tr><td colspan="9">No tickers yet. Add one above.</td></tr>`;
  document.getElementById('pm').innerHTML=h+'</tbody></table>'}
 let SUMS={};async function loadSums(){try{const r=await fetch('summaries.json?t='+Date.now(),{cache:'no-store'});if(r.ok)SUMS=await r.json()||{}}catch(e){}}
-async function poll(){await loadSums();try{const r=await fetch('data.json?t='+Date.now(),{cache:'no-store'});if(r.ok){DATA=await r.json();}}catch(e){}render(DATA);next=60}
-setInterval(()=>{next--;if(next<=0)poll();const c=document.getElementById('cd');if(c)c.textContent='refreshing in '+next+'s'},1000);
-if(DATA)render(DATA);poll();
+// The page data is AES-GCM encrypted with a key derived from the site password (PBKDF2-SHA256), matching sitecrypt.py.
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0)),KS='mmrKey';
+async function fetchEnc(){const r=await fetch('data.enc.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('fetch '+r.status);return r.json()}
+async function deriveKey(pw,e){const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+ return crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt:b64(e.salt),iterations:e.iter},base,{name:'AES-GCM',length:256},true,['decrypt'])}
+async function decryptWith(k,e){return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(e.iv)},k,b64(e.ct))))}
+function saveKey(raw,e){try{localStorage.setItem(KS,JSON.stringify({k:btoa(String.fromCharCode(...new Uint8Array(raw))),salt:e.salt,iter:e.iter}))}catch(x){}}
+async function storedKey(e){try{const s=JSON.parse(localStorage.getItem(KS)||'null');if(!s||s.salt!=e.salt||s.iter!=e.iter)return null;
+ return crypto.subtle.importKey('raw',b64(s.k),{name:'AES-GCM'},false,['decrypt'])}catch(x){return null}}
+function show(on){document.getElementById('lock').hidden=on;document.getElementById('main').hidden=!on}
+function lockSite(){KEY=null;DATA=null;try{localStorage.removeItem(KS)}catch(x){}document.getElementById('pw').value='';document.getElementById('lmsg').textContent='';show(false)}
+async function unlock(ev){ev.preventDefault();const m=document.getElementById('lmsg'),b=document.getElementById('ubtn');b.disabled=true;m.textContent='Unlocking…';
+ try{const e=await fetchEnc(),k=await deriveKey(document.getElementById('pw').value,e);let d;try{d=await decryptWith(k,e)}catch(x){m.innerHTML='<span class="dn">Wrong password.</span>';return false}
+  KEY=k;if(document.getElementById('rem').checked)saveKey(await crypto.subtle.exportKey('raw',k),e);DATA=d;show(true);await loadSums();render(DATA);next=60;m.textContent=''}
+ catch(x){m.innerHTML='<span class="dn">Couldn\'t load the data. Check your connection and try again.</span>'}finally{b.disabled=false}return false}
+async function poll(){if(!KEY)return;await loadSums();try{const e=await fetchEnc();DATA=await decryptWith(KEY,e)}catch(x){if(x&&x.name=='OperationError'){lockSite();return}}render(DATA);next=60}
+setInterval(()=>{if(!KEY||document.hidden)return;next--;if(next<=0)poll();const c=document.getElementById('cd');if(c)c.textContent='refreshing in '+next+'s'},1000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&KEY&&next<55)poll()});
+(async()=>{try{const e=await fetchEnc(),k=await storedKey(e);if(k){const d=await decryptWith(k,e);KEY=k;DATA=d;show(true);await loadSums();render(DATA);return}}catch(x){}show(false);document.getElementById('pw').focus()})();
 </script></body></html>

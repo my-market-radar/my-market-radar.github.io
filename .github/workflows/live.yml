@@ -8,28 +8,46 @@ on:
         description: 'Bypass market-hours check'
         type: boolean
         default: false
+  push:
+    branches: [main]
+    paths: [template.html, refresh.py, sitecrypt.py, static.json, premarket.json, summaries.json, .github/workflows/live.yml]
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 concurrency:
   group: live
   cancel-in-progress: false
 jobs:
-  refresh:
+  build:
     runs-on: ubuntu-latest
+    outputs:
+      built: ${{ steps.refresh.outputs.built }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - run: pip install -q yfinance
-      - name: Refresh
+      - run: pip install -q yfinance cryptography
+      - name: Refresh and build encrypted site
+        id: refresh
         env:
-          FORCE: ${{ inputs.force && '1' || '0' }}
-        run: python3 refresh.py
-      - name: Commit if changed
+          # Pushes (template, summaries, list changes) rebuild even outside market hours.
+          FORCE: ${{ (github.event_name == 'push' || inputs.force) && '1' || '0' }}
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+          POSITIONS_JSON: ${{ secrets.POSITIONS_JSON }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898201+github-actions[bot]@users.noreply.github.com"
-          git add data.json index.html
-          if git diff --cached --quiet; then echo "No changes"; exit 0; fi
-          git commit -m "Live data $(TZ=America/New_York date '+%F %H:%M %Z')"
-          git pull --rebase -q origin main && git push -q origin main
+          python3 refresh.py
+          if [ -f _site/index.html ]; then echo "built=true" >> "$GITHUB_OUTPUT"; fi
+      - if: steps.refresh.outputs.built == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with: { path: _site }
+  deploy:
+    needs: build
+    if: needs.build.outputs.built == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

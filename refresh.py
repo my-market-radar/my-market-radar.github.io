@@ -3,7 +3,7 @@
 Builds the site into _site/ with the data encrypted (AES-GCM, key = PBKDF2 of SITE_PASSWORD).
 Exits early outside 4:00-16:10 ET on weekdays unless FORCE=1 (or --force).
 Env: SITE_PASSWORD (required), POSITIONS_JSON (optional, {"GDX":{"entry_price":80.2,"units":100,"date_added":"2026-10-25"}})."""
-import json, datetime, pathlib, os, sys, zoneinfo, base64, shutil
+import json, datetime, pathlib, os, sys, zoneinfo, shutil
 ET = zoneinfo.ZoneInfo("America/New_York")
 now = datetime.datetime.now(ET)
 force = os.environ.get("FORCE") in ("1", "true") or "--force" in sys.argv
@@ -14,6 +14,8 @@ PASSWORD = os.environ.get("SITE_PASSWORD", "")
 if not PASSWORD: sys.exit("SITE_PASSWORD is not set; refusing to publish unencrypted data.")
 import yfinance as yf
 D = pathlib.Path(__file__).parent
+sys.path.insert(0, str(D))
+import sitecrypt
 cfg = json.loads((D/"static.json").read_text())
 # Entry price / units / date added live in the POSITIONS_JSON secret, not in the public repo.
 POS = json.loads(os.environ.get("POSITIONS_JSON") or "{}")
@@ -112,6 +114,11 @@ for sym in pml:
 data = {"updated": now.strftime("%a %b %d, %Y %I:%M:%S %p ET"), "updated_iso": now.isoformat(), "market": phase(now),
         "rows": rows, "premarket": premarket, "gdx_detail": cfg["gdx_detail"],
         "note": "Quotes: Yahoo Finance via yfinance (may be delayed). 5-min intraday bars for the sparkline. SMA/RSI(14, Wilder)/52w from daily closes incl. today's price."}
-(D/"data.json").write_text(json.dumps(data, indent=1))
-(D/"index.html").write_text((D/"template.html").read_text().replace("/*DATA*/null", json.dumps(data)))
-print("updated", data["updated"], [(r["ticker"], r["price"], r["day_pct"]) for r in rows], [(r["ticker"], r.get("pm_price"), r.get("gap_pct")) for r in premarket])
+# Build the published site. Nothing with prices or positions is written into the repo itself.
+out = D/"_site"
+shutil.rmtree(out, ignore_errors=True); out.mkdir()
+shutil.copy(D/"template.html", out/"index.html")
+(out/"data.enc.json").write_text(json.dumps(sitecrypt.encrypt(data, PASSWORD)))
+if (D/"summaries.json").exists(): shutil.copy(D/"summaries.json", out/"summaries.json")
+(out/".nojekyll").write_text("")
+print("built _site", data["updated"], [(r["ticker"], r["price"], r["day_pct"]) for r in rows], [(r["ticker"], r.get("pm_price"), r.get("gap_pct")) for r in premarket])
