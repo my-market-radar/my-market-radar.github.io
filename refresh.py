@@ -42,6 +42,10 @@ for p in cfg["portfolio"]:
     r["ret_pct"] = round((price/p["entry_price"]-1)*100, 2); r["value"] = round(p["units"]*price, 2)
     r["pl"] = round(p["units"]*(price-p["entry_price"]), 2)
     rows.append(r)
+SP = D/"summaries.json"
+sums = json.loads(SP.read_text()) if SP.exists() else {}
+for r in rows:
+    if r["ticker"] in sums: r["ai"] = sums[r["ticker"]]
 data = {"updated": now.strftime("%a %b %d, %Y %I:%M:%S %p ET"), "updated_iso": now.isoformat(), "market": phase(now),
         "rows": rows, "gdx_detail": cfg["gdx_detail"],
         "note": "Quotes: Yahoo Finance via yfinance (may be delayed). 5-min intraday bars for the sparkline. SMA/RSI(14, Wilder)/52w from daily closes incl. today's price."}
